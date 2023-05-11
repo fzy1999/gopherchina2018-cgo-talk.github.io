@@ -1,14 +1,12 @@
-<!--
-// Copyright 2018 ChaiShushan <chaishushan{AT}gmail.com>. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
--->
+
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
 
 <!-- *** 横向分隔, --- 竖向分隔, Note: 讲稿注释  -->
 
 <!--
+
+
 Reveal.js 可能会需要 AJAX 异步加载 Markdown 文件, 可以在当前目录启动一个 http 服务.
 
 以下是常见的临时启动 http 服务器的方式:
@@ -34,91 +32,35 @@ Reveal.js 可能会需要 AJAX 异步加载 Markdown 文件, 可以在当前目�
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
 
-<section data-background="images/gopherchina2018-background.jpg">
+<!-- <section data-background="images/gopherchina2018-background.jpg"> -->
 
-# 深入CGO编程 <!-- .element: style="color:DarkSlateGray;" -->
+# CGO编程 <!-- .element: style="color:DarkSlateGray;" -->
 ------------
 
-#### [chai2010 (柴树杉)](https://chai2010.cn) <!-- .element: style="color:DarkSlateGray;" -->
+#### 冯昭宇 <!-- .element: style="color:DarkSlateGray;" -->
 
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
 ***
 
-## 感谢 GopherChina
+## 参考资料
 ------------------
-
-#### ![](images/gopherchina2018.png) <!-- .element: style="width:75%;" -->
-#### http://gopherchina.org/
+- [《Go语言高级编程》](https://github.com/chai2010/advanced-go-programming-book) 
+- [GopherChina 2018报告](https://github.com/chai2010/gopherchina2018-cgo-talk)
+- 《程序员的自我修养：链接、装载与库》
+- 《C++Primer Plus》
+- #### https://golang.org/cmd/cgo/
+- #### https://blog.golang.org/c-go-cgo
+- #### https://github.com/golang/go/wiki/cgo
+- #### https://golang.org/src/runtime/cgocall.go
+- #### https://golang.org/misc/cgo/test/
 
 ---
-### 感谢 韦光京 对CGO的贡献
+## 既不太会C
+## 也不太会Go
 ------------------------
+### 若有不对或问题，欢迎中断指出
 
-#### ![](images/go-wgj-commits.png) <!-- .element: style="width:60%;" -->
-
-#### https://github.com/golang/go/commits?author=wgj-zz
-
----
-### 幻灯片 网址
--------------
-
-#### ![](images/chai2010-gopherchina2018-cgo-talk.png) <!-- .element: style="width:40%;" -->
-
-#### https://github.com/chai2010/gopherchina2018-cgo-talk
-
-<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
-***
-
-## 个人简介
-----------
-
-- [Go语言代码](https://golang.org/CONTRIBUTORS) 贡献者(ChaiShushan)
-- [《Go语言高级编程》](https://github.com/chai2010/advanced-go-programming-book) 作者
-- [《WebAssembly标准入门》](https://github.com/chai2010/awesome-wasm-zh/blob/master/webassembly-primer.md) 作者
-
-----
-
-- https://github.com/chai2010
-- https://chai2010.cn
-
-
----
-#### ![](images/chai2010-books.png) <!-- .element: width="90%" -->
-
----
-### 珠三角技术沙龙深圳(2011.02.27)
--------------------------------
-
-#### ![](images/sz-20110227-chai2010-cgo.png) <!-- .element: width="60%" -->
-
-#### [Go集成C&C++代码](https://www.slideshare.net/yashi88/gocc)
-
-<!--
-#### [Go语言简介](https://www.slideshare.net/yashi88/go-7148661
-) - 韦光京
-#### [Go语言Web开发](https://www.slideshare.net/yashi88/goweb-7506006
-) - 韦光京
--->
-
----
-### 珠三角技术沙龙深圳(2011.02.27)
--------------------------------
-
-#### ![](images/sz-20110227.jpg) <!-- .element: width="65%" -->
-
-#### [更多图片](https://www.flickr.com/photos/yashi88/sets/72157626155161952/with/5482309510/)
-
----
-### 个人签名
-----------
-
-- 当歌曲、传说都已经缄默的时候，只有代码还在说话!
-- Less is more!
-
-
-
-<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
 ***
 
 ## 内容大纲
@@ -131,7 +73,6 @@ Reveal.js 可能会需要 AJAX 异步加载 Markdown 文件, 可以在当前目�
 - 快速入门
 - 类型转换
 - 函数调用
-- CGO内部机制
 - 实战: 包装 `C.qsort`
 - 内存模型
 
@@ -398,6 +339,7 @@ Note:
 ---------
 
 ```go
+
 func main() {
 	C.SayHello("Hello, World\n")
 }
@@ -884,104 +826,7 @@ func GoAdd(a, b C.int) C.int {
 
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
-***
-## CGO内部机制
--------------
 
-- CGO生成的中间文件
-- 内部调用流程: Go -> C
-- 内部调用流程: C -> Go
-
-
----
-### CGO生成的中间文件
--------------------
-
-#### ![](images/cgo-generated-files.dot.png) <!-- .element: width="95%" -->
-
-
----
-### 内部调用流程: Go -> C
--------------
-
-```go
-package main
-
-//int sum(int a, int b) { return a+b; }
-import "C"
-
-func main() {
-	C.sum(1, 2)
-}
-```
----------------
-
-1. `C.sum` => `_Cfunc_sum`
-1. `runtime.cgocall`
-1. newthread: `sum`
-
-
----
-### 内部调用流程: Go -> C
--------------
-
-#### ![](images/call-c-sum-v1.uml.png) <!-- .element: width="95%" -->
-
----
-### 内部调用流程: C -> Go
-----------------
-
-sum.go
-
-```go
-//int sum(int a, int b);
-import "C"
-
-//export sum
-func sum(a, b C.int) C.int {
-	return a + b
-}
-```
-
-main.c:
-
-```c
-int main() {
-	extern int sum(int a, int b);
-	sum(1, 2);
-	return 0;
-}
-```
----------------
-
----
-### 内部调用流程: C -> Go
-----------------
-
-1. c thread: `sum`
-1. `ctx = cgo_runtime_init_done()`
-1. `runtime/cgo/crosscall2`
-1. goroutine: `_cgoexp_xxx_sum`
-1. goroutine: `_cgowrap_xxx_sim`
-1. goroutine: `sum`
-1. `cgo_release_context(ctx)`
-
-
----
-### 内部调用流程: C -> Go
-----------------
-
-#### ![](images/call-c-sum-v2.uml.png) <!-- .element: width="95%" -->
-
-
----
-### C.xxx 类型不能跨越多个包
---------------------------
-
-- 因为 `C.xxx` 最终对应 `_Ctype_xxx` 内部类型
-- 因此不同包之间的 `C.int` 并不是相同的类型
-
-<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
 ***
 
 ## 实战: 包装 `C.qsort`
@@ -2527,120 +2372,6 @@ lib /def:number.def /machine:x64
 
 - 原则: 跨动态库时, 尽量避免使用 malloc 和 free
 
-<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
-***
-
-## 编写Python扩展
------------------
-
-- ctypes: 基于纯C接口
-- 基于Py扩展接口
-
----
-### ctypes: 基于C接口(A)
--------------------
-
-```go
-// main.go
-package main
-
-import "C"
-import "fmt"
-
-func main() {}
-
-//export SayHello
-func SayHello(name *C.char) {
-	fmt.Printf("hello %s!\n", C.GoString(name))
-}
-```
-
-```
-go build -buildmode=c-shared -o say-hello.so main.go
-```
-------------
-
-- 生成纯C接口的动态库
-
-
----
-### ctypes: 基于C接口(B)
--------------------
-
-```py
-# hello.py
-import ctypes
-
-libso = ctypes.CDLL("./say-hello.so")
-
-SayHello = libso.SayHello
-SayHello.argtypes = [ctypes.c_char_p]
-SayHello.restype = None
-
-SayHello(ctypes.c_char_p(b"hello"))
-```
-
-```
-$ python3 hello.py
-```
-
------------
-
-- Python3 字节字符串 `b"hello"`
-- 为了便于使用, 需要 py 二次包装
-
----
-### 基于Py扩展接口(A)
--------------------
-
-```go
-/*
-static PyObject* cgo_PyInit_gopkg(void) {
-	static PyMethodDef methods[] = {
-		{"sum", Py_gopkg_sum, METH_VARARGS, "Add two numbers."},
-		{NULL, NULL, 0, NULL},
-	};
-	static struct PyModuleDef module = {
-		PyModuleDef_HEAD_INIT, "gopkg", NULL, -1, methods,
-	};
-	return PyModule_Create(&module);
-}
-*/
-import "C"
-```
-------------
-
-- 涉及内存的部分必须在C语言定义
-- 模块的名字是 gopkg
-
----
-### 基于Py扩展接口(B)
--------------------
-
-```go
-//export PyInit_gopkg
-func PyInit_gopkg() *C.PyObject {
-	return C.cgo_PyInit_gopkg()
-}
-
-//export Py_gopkg_sum
-func Py_gopkg_sum(self, args *C.PyObject) *C.PyObject {
-	var a, b C.int
-	if C.cgo_PyArg_ParseTuple_ii(args, &a, &b) == 0 {
-		return nil
-	}
-	return C.PyLong_FromLong(C.long(a + b))
-}
-```
-
-```
-$ go build -buildmode=c-shared -o gopkg.so main.go
-```
-
------------
-
-- 模块的方法函数可用Go实现
-- 生成的动态库名要和模块名一致 gopkg.so
 
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
@@ -2838,78 +2569,5 @@ $ go get github.com/chai2010/webp
 
 - cgo 交叉编译时指定gcc命令
 - 比如 CC_FOR_darwin_arm64 用于 iOS
-
-<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
-***
-## 更多话题
------------
-
-- SWIG
-- Go Mobile
-- ...
-
----
-### SWIG
---------
-
-```go
-// hello_test.go
-func TestSayHello(t *testing.T) {
-	SayHello()
-}
-```
-
-```c
-// hello.cc
-#include <iostream>
-
-void SayHello() {
-	std::cout << "Hello, World!" << std::endl;
-}
-```
-
-```
-// hello.swigcxx
-%module hello
-
-%inline %{
-extern void SayHello();
-%}
-```
----------
-
-- 至少有一个go文件, 用于 go build 触发 swig 命令
-
-
----
-### Go Mobile 原理
------------
-
-- [golang.org/x/mobile/bind/seq/ref.go](https://github.com/golang/mobile/blob/master/bind/seq/ref.go)
-- [golang.org/x/mobile/bind/objc/seq_darwin.go](https://github.com/golang/mobile/blob/master/bind/objc/seq_darwin.go.support)
-- [golang.org/x/mobile/bind/objc/seq_darwin.m](https://github.com/golang/mobile/blob/master/bind/objc/seq_darwin.m.support)
-
-
-<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
-***
-
-## 参考资源
-
-#### https://golang.org/cmd/cgo/
-#### https://blog.golang.org/c-go-cgo
-#### https://github.com/golang/go/wiki/cgo
-#### https://golang.org/src/runtime/cgocall.go
-#### https://golang.org/misc/cgo/test/
-
-<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
-***
-
-## Thank you
-
-#### [https://github.com/chai2010](https://github.com/chai2010)
-
-#### [https://chai2010.cn](https://chai2010.cn)
-
-#### ![](images/chai2010-gopherchina2018-cgo-talk.png) <!-- .element: style="width:20%;" -->
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
