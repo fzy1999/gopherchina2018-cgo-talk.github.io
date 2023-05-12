@@ -14,13 +14,13 @@ Reveal.js 可能会需要 AJAX 异步加载 Markdown 文件, 可以在当前目�
 	NodeJS
 	npm install http-server -g
 	http-server
-
+	
 	Python2
 	python -m SimpleHTTPServer
-
+	
 	Python3
 	python -m http.server
-
+	
 	Golang
 	go run server.go
 
@@ -73,21 +73,11 @@ Reveal.js 可能会需要 AJAX 异步加载 Markdown 文件, 可以在当前目�
 - 快速入门
 - 类型转换
 - 函数调用
-- 实战: 包装 `C.qsort`
-- 内存模型
+- Go访问C++对象, Go对象导出为C++对象
+- 编译和链接参数
+- 编译与链接
 
 --------
-
----
-### 内容大纲(续)
---------------
-
-- Go访问C++对象, Go对象导出为C++对象
-- 静态库和动态库
-- 编写Python扩展
-- 编译和链接参数
-
-----------
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
 ***
@@ -95,35 +85,12 @@ Reveal.js 可能会需要 AJAX 异步加载 Markdown 文件, 可以在当前目�
 ## CGO的价值
 --------------
 
-- 小调查: 有多少人 **听说过** 或 **简单使用过** CGO?
-
---------
-
 1. 没有银弹, Go语言也不是银弹, 无法解决全部问题
-2. 通过CGO可以继承C/C++将近半个世纪的软件积累
+2. 通过CGO可以继承C/C++的软件遗产
+
+            比如IEDA软件中的“iDB”模块
 3. 通过CGO可以用Go给其它系统写C接口的共享库
 4. CGO是Go和其它语言直接通讯的桥梁
-
---------
-
-- CGO 是一个保底的后备技术
-- CGO 是 Go 的替补技术
-
----
-
-### 可能的CGO的场景
-----------------
-
-- 通过OpenGL或OpenCL使用显卡的计算能力
-- 通过OpenCV来进行图像分析
-- 通过Go编写Python扩展
-- 通过Go编写移动应用
-
----
-### Cgo is not Go
------------------
-
-##### https://dave.cheney.net/2016/01/18/cgo-is-not-go
 
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
@@ -254,10 +221,8 @@ examples/hello-v4/hello.go:
 
 ```go
 package main
-
 import "C"
 import "fmt"
-
 //export SayHello
 func SayHello(s *C.char) {
 	fmt.Print(C.GoString(s))
@@ -265,9 +230,8 @@ func SayHello(s *C.char) {
 ```
 
 ------
-
-- 函数参数去掉 `const` 修饰符
 - hello.c => hello.go
+- SayHello 函数被声明为 //export，遵循C语言的ABI（Application Binary Interface）
 
 ---
 ### 手中无剑, 心中有剑
@@ -827,405 +791,7 @@ func GoAdd(a, b C.int) C.int {
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
 
-***
 
-## 实战: 包装 `C.qsort`
----------------------
-
-```c
-#include <stdlib.h>
-
-void qsort(
-	void* base, size_t num, size_t size,
-	int (*compare)(const void* a, const void* b)
-);
-```
-
----------------------
-
-- `qsort` 为 C 语言高阶函数
-- 通过传入自定义的比较函数进行快排序
-- 尝试包装为Go版本的qsort
-- 目标: 简单易用, 功能灵活
-
-
----
-### qsort 包装的分阶段目标
------------------------
-
-- 第一步: 用于Go固定类型数组的排序
-- 第二步: 在Go中自传入比较函数
-- 第三步: Go比较函数类型的简化
-- 第四步: 适配更多数组类型
-
----
-### C中的qsort
--------------
-
-```c
-#include <stdlib.h>
-
-#define DIM(x) (sizeof(x)/sizeof((x)[0]))
-
-static int compare(const void* a, const void* b) {
-	return ( *(int*)a - *(int*)b );
-}
-
-int main() {
-	int values[] = { 42, 9, 101, 95, 27, 25 };
-	qsort(values, DIM(values), sizeof(values[0]), compare);
-	return 0;
-}
-```
--------------
-
-- DIM 宏编译时计算数组元素个数
-- compare 是静态函数, 用于 qsort 的比较函数
-- qsort 可用于结构体数组排序, 需要指定数组元素大小
-
----
-### Go中的qsort(A)
------------------
-
-```go
-/*
-#include <stdlib.h>
-
-#define DIM(x) (sizeof(x)/sizeof((x)[0]))
-
-static int compare(const void* a, const void* b) {
-	return ( *(int*)a - *(int*)b );
-}
-
-static void qsort_proxy(int* values, size_t len, size_t elemsize) {
-	qsort(values, len, sizeof(values[0]), compare);
-}
-*/
-import "C"
-```
------------------
-
-- qsort_proxy 为代理函数
-- 不能改变比较函数
-
----
-### Go中的qsort(B)
------------------
-
-```go
-import "unsafe"
-import "fmt"
-
-func main() {
-	values := []int32{ 42, 9, 101, 95, 27, 25 };
-	C.qsort_proxy(
-		(*C.int)(unsafe.Pointer(&values[0])),
-		C.size_t(len(values)),
-		C.size_t(unsafe.Sizeof(values[0])),
-	)
-	fmt.Println(values)
-}
-```
------------------
-
-- 可用于排序Go数组
-- 不能改变比较函数
-
-
----
-### C比较函数回调Go导出函数
------------------------
-
-```go
-/*
-extern int go_qsort_compare(void* a, void* b);
-
-static int compare(const void* a, const void* b) {
-	return go_qsort_compare((void*)(a), (void*)(b));
-}
-*/
-import "C"
-
-//export go_qsort_compare
-func go_qsort_compare(a, b unsafe.Pointer) C.int {
-	pa := (*C.int)(a)
-	pb := (*C.int)(b)
-	return C.int(*pa - *pb)
-}
-```
------------------------
-
-- 为何不直接传入 go_qsort_compare ?
-
----
-### 直接使用Go导出的比较函数
-------------------------
-
-```go
-/*
-#include <stdlib.h>
-
-typedef int (*qsort_cmp_func_t)(const void* a, const void* b);
-extern int go_qsort_compare(void* a, void* b);
-*/
-import "C"
-
-func main() {
-	values := []int32{42, 9, 101, 95, 27, 25}
-
-	C.qsort(unsafe.Pointer(&values[0]),
-		C.size_t(len(values)), C.size_t(unsafe.Sizeof(values[0])),
-		(C.qsort_cmp_func_t)(unsafe.Pointer(C.go_qsort_compare)),
-	)
-}
-```
-------------------------
-
-- Go导出函数参数没有 const 修饰, 和 qosrt 不兼容
-- 通过 `C.qsort_cmp_func_t` 强制转型回调函数类型
-
----
-### 传入闭包比较函数(A)
---------------------
-
-```go
-import "C"
-
-//export go_qsort_compare
-func go_qsort_compare(a, b unsafe.Pointer) C.int {
-	return go_qsort_compare_info.fn(a, b)
-}
-
-var go_qsort_compare_info struct {
-	fn func(a, b unsafe.Pointer) C.int
-	sync.RWMutex
-}
-```
---------------------
-
-- `go_qsort_compare_info` 保存闭包比较函数信息
-- 为了并发安全, 需要加锁保护
-
----
-### 传入闭包比较函数(B)
---------------------
-
-```go
-func main() {
-	values := []int32{42, 9, 101, 95, 27, 25}
-
-	go_qsort_compare_info.Lock()
-	defer go_qsort_compare_info.Unlock()
-	go_qsort_compare_info.fn = func(a, b unsafe.Pointer) C.int {
-		pa := (*C.int)(a)
-		pb := (*C.int)(b)
-		return C.int(*pa - *pb)
-	}
-
-	C.qsort(unsafe.Pointer(&values[0]),
-		C.size_t(len(values)), C.size_t(unsafe.Sizeof(values[0])),
-		(C.qsort_cmp_func_t)(unsafe.Pointer(C.go_qsort_compare)),
-	)
-}
-```
---------------------
-
-- 为了并发安全, 需要加锁保护
-
----
-### 传入闭包比较函数(C)
---------------------
-
-```go
-func qsort(values []int32, fn func(a, b unsafe.Pointer) C.int) {
-	go_qsort_compare_info.Lock()
-	defer go_qsort_compare_info.Unlock()
-
-	go_qsort_compare_info.fn = fn
-
-	C.qsort(
-		unsafe.Pointer(&values[0]),
-		C.size_t(len(values)),
-		C.size_t(unsafe.Sizeof(values[0])),
-		(C.qsort_cmp_func_t)(unsafe.Pointer(C.go_qsort_compare)),
-	)
-}
-```
---------------------
-
-- 包装了Go版本的qsort函数, 支持传入闭包比较函数
-- 不足: 只支持  `[]int32` 类型数组
-- 不足: 比较函数依然难用
-
-
----
-### 通过接口适配更多数组类型
-------------------------
-
-```go
-func qsort(slice interface{}, fn func(a, b unsafe.Pointer) C.int) {
-	sv := reflect.ValueOf(slice)
-	if sv.Kind() != reflect.Slice {
-		panic("not slice type")
-	}
-
-	go_qsort_compare_info.Lock()
-	defer go_qsort_compare_info.Unlock()
-	go_qsort_compare_info.fn = fn
-
-	C.qsort(
-		unsafe.Pointer(unsafe.Pointer(sv.Index(0).Addr().Pointer())),
-		C.size_t(sv.Len()), C.size_t(sv.Type().Elem().Size()),
-		(C.qsort_cmp_func_t)(unsafe.Pointer(C.go_qsort_compare)),
-	)
-}
-```
-------------------------
-
-- 改用空接口接收不同数组类型(没有范型的恶果)
-- 通过 reflect 来获取数组或切片的信息
-
----
-### 简化比较函数类型(A)
---------------------
-
-```go
-func qsort(slice interface{}, fn func(a, b int) int) {
-	...
-}
-```
------------------
-
-- 参考sort包的less函数: `func(i, j int) int`
-- 将元素指针转为数组下标, 配合闭包函数更简单
-- 返回值转为普通 int 类型
-
----
-### 简化比较函数类型(B)
---------------------
-
-- 如何将比较函数的指针转为数组下标?
-- 通过元素指针减去数组开始地址似乎可以
-
------------------
-
-- Go中数组的内存地址可能会移动, 如何处理?
-- 在`C.qsort`函数调用时, 此时Go内存已经锁定
-
------------------
-
-- 如果已经调用`C.qsort`函数, 如何告诉比较函数地址?
-- 可做一个qosrt代理函数, 在入口保存数组地址
-
------------------
-
-- 以上方案似乎可行
-
----
-### 简化比较函数类型(C)
---------------------
-
-```go
-/*
-#include <stdlib.h>
-
-extern int  go_qsort_compare(void* a, void* b);
-extern void go_qsort_compare_save_base(void* base);
-
-static void qsort_proxy(
-	void* base, size_t num, size_t size,
-	int (*compar)(const void* a, const void* b)
-) {
-	go_qsort_compare_save_base(base); // 保存数组地址
-	qsort(base, num, size, compar);
-}
-*/
-import "C"
-```
-
---------------------
-
-- `go_qsort_compare_save_base` 是 Go 导出函数
-- 用于保存当前排序数组的地址
-- 为何不在Go中直接保存?
-
----
-### 简化比较函数类型(D)
---------------------
-
-```go
-//export go_qsort_compare_save_base
-func go_qsort_compare_save_base(base unsafe.Pointer) {
-	go_qsort_compare_info.base = uintptr(base)
-}
-
-var go_qsort_compare_info struct {
-	base     uintptr
-	elemsize uintptr
-	fn       func(a, b int) int
-	sync.RWMutex
-}
-```
-
---------------------
-
-- `go_qsort_compare_info` 还增加了 elemsize 信息
-- elemsize 对应数组元素的大小
-
----
-### 简化比较函数类型(E)
---------------------
-
-```go
-//export go_qsort_compare
-func go_qsort_compare(a, b unsafe.Pointer) C.int {
-	var (
-		// array memory is locked
-		base     = go_qsort_compare_info.base
-		elemsize = go_qsort_compare_info.elemsize
-	)
-
-	i := int((uintptr(a) - base) / elemsize)
-	j := int((uintptr(b) - base) / elemsize)
-
-	return C.int(go_qsort_compare_info.fn(i, j))
-}
-```
-
---------------------
-
-- 比较函数将指针转为数组的下标
-- 然后调用闭包比较函数
-
----
-### qsort最终版本
-----------------
-
-```go
-func main() {
-	values := []int64{42, 9, 101, 95, 27, 25}
-
-	qsort(values, func(i, j int) int {
-		return int(values[i] - values[j])
-	})
-}
-
-func qsort(slice interface{}, fn func(a, b int) int) {
-	...
-}
-```
-----------------
-
-- 闭包的缺点: 需要借助全局变量转为C函数指针
-- qsort 对全局资源产生依赖, 对并发有影响
-
-
----
-
-#### ![](images/qsort-v2.uml.png) <!-- .element: width="85%" -->
-
-
-<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
 ***
 
 ## 内存模型
@@ -1661,31 +1227,32 @@ func FreeGoString(p *C.char) {
 ---------
 
 1. 准备一个C++类
-1. C++类转C接口
-1. C接口函数到Go接口函数
-1. Go接口函数到Go对象
+2. 去除命名空间
+3. C++类转C接口
+4. C接口函数到Go接口函数
+5. Go接口函数到Go对象
 
 ---
 ### Go访问C++对象: 准备一个C++类
 ------------------
 
-```go
-struct MyBuffer {
-	std::string* s_;
+```c++
 
-	MyBuffer(int size) {
-		this->s_ = new std::string(size, char('\0'));
-	}
-	~MyBuffer() {
-		delete this->s_;
-	}
-	int Size() const {
-		return this->s_->size();
-	}
-	char* Data() {
-		return (char*)this->s_->data();
-	}
-};
+namespace ifp {
+    class FpApi
+    {
+     public:
+      static FpApi* getInstance();
+      
+      static void  destroyInst();
+      
+      // function
+      bool initDie(double die_lx, double die_ly, double die_ux, double die_uy);
+      
+      private:
+      	static FpApi* _instance;	
+    }
+}
 ```
 
 -------
@@ -1697,202 +1264,111 @@ struct MyBuffer {
 ### Go访问C++对象: C++中的使用方式
 ------------------
 
-```c
+```c++
+
 int main() {
-	auto pBuf = new MyBuffer(1024);
-
-	auto data = pBuf->Data();
-	auto size = pBuf->Size();
-
-	delete pBuf;
+	ifp::FpApi* obj = ifp::FpApi::getInstance();
+    obj.initDie(1,2,3,4);
+    obj.destroyInst();
 }
 ```
 
 -----
 
-- 通过 new 创建对象, 避免以值或引用的方式使用对象
+
 
 ---
 ### Go访问C++对象: 想象为C风格接口
 ------------------
-
+##### C语言版本
 ```c
 int main() {
-	MyBuffer* pBuf = NewMyBuffer(1024);
-
-	char* data = MyBuffer_Data(pBuf);
-	auto size = MyBuffer_Size(pBuf);
-
-	DeleteMyBuffer(pBuf);
+	ifpFpApi* obj = FpApi_create();
+	FpApi_initDie(obj,0.0,0.0, 2843,  2843)
+	FpApi_free(obj)
 }
 ```
-
 -----------
+##### GO语言版本
+```go
+import "C"
+func main() {
+	obj:=C.FpApi_create()
+	C.FpApi_initDie(obj,0.0,0.0, 2843,  2843)
+	C.FpApi_free(obj)
+}
+```
+-------------
 
-- new 关键字很容易转为 new 函数
-- Go 中 new 也是一个范型函数
 
 ---
-### Go访问C++对象: C接口
+### Go访问C++对象: 无命名空间的C++  
 ------------------
 
-```c
-// my_buffer_capi.h
-typedef struct MyBuffer_T MyBuffer_T;
-
-MyBuffer_T* NewMyBuffer(int size);
-void DeleteMyBuffer(MyBuffer_T* p);
-
-char* MyBuffer_Data(MyBuffer_T* p);
-int MyBuffer_Size(MyBuffer_T* p);
+```c++
+class ifpFpApi{
+    public:
+        ifpFpApi(){}
+        
+        bool ifpinitDie(double die_lx, double die_ly, double die_ux, double die_uy){
+            return ifp::FpApi::getInstance()->initDie( die_lx,  die_ly,  die_ux,  die_uy);
+        }
+        
+        ~ifpFpApi(){
+        	ifp::FpApi::getInstance()->destroyInst();
+        }
+};
 ```
 
 -----
 
-- `MyBuffer_T` 是一种匿名的结构
-- 避免依赖 new/delete 关键字
-- 一切都是 C 函数风格
+- extern“C”貌似不支持命名空间
+
 
 ---
-### Go访问C++对象: C接口实现(01)
+### Go访问C++对象: C接口实现
 ------------------
 
 ```c
-#include "./my_buffer.h"
+typedef struct ifpFpApi ifpFpApi;
 
-extern "C" {
-	#include "./my_buffer_capi.h"
+ifpFpApi *FpApi_create(){
+    return new ifpFpApi();
 }
 
-struct MyBuffer_T: MyBuffer {
-	MyBuffer_T(int size): MyBuffer(size) {}
-	~MyBuffer_T() {}
-};
+void FpApi_initDie(ifpFpApi*p, double die_lx, double die_ly, double die_ux, double die_uy){
+     p->ifpinitDie( die_lx,  die_ly,  die_ux,  die_uy);
+    
+}
 
-MyBuffer_T* NewMyBuffer(int size) {
-	auto p = new MyBuffer_T(size);
-	return p;
+void FpApi_free(ifpFpApi*p){
+    delete p;
+    p = 0;
 }
 ```
 
 ----------
 
-- 对外, `MyBuffer_T` 是一种匿名的结构
-- 对内, `MyBuffer_T` 是一个普通的 C++ 类, 有基类
+- 通过 new 创建对象, 避免以值或引用的方式使用对象
 
 
 ---
-### Go访问C++对象: C接口实现(02)
-------------------
-
-```c
-void DeleteMyBuffer(MyBuffer_T* p) {
-	delete p;
-}
-
-char* MyBuffer_Data(MyBuffer_T* p) {
-	return p->Data();
-}
-int MyBuffer_Size(MyBuffer_T* p) {
-	return p->Size();
-}
-```
-
---------
-
-- 将类函数转为全局的C函数
-- p 对应 this
-
----
-### Go访问C++对象: C函数到Go函数(01)
+### Go访问C++对象:Go调用C接口
 ------------------
 
 ```go
-//#include "my_buffer_capi.h"
+# include"ifp_api_wrapperC.h"
+*/
 import "C"
 
-type cgo_MyBuffer_T C.MyBuffer_T
-
-func cgo_NewMyBuffer(size int) *cgo_MyBuffer_T {
-	p := C.NewMyBuffer(C.int(size))
-	return (*cgo_MyBuffer_T)(p)
-}
-
-func cgo_DeleteMyBuffer(p *cgo_MyBuffer_T) {
-	C.DeleteMyBuffer((*C.MyBuffer_T)(p))
-}
-```
-
---------------
-
-- 只是为了便于理解, 真实环节可以省略这层封装
-- 这是CGO桥接两个语言的关键部分
-
-
----
-### Go访问C++对象: C函数到Go函数(02)
-------------------
-
-```go
-func cgo_MyBuffer_Data(p *cgo_MyBuffer_T) *C.char {
-	return C.MyBuffer_Data((*C.MyBuffer_T)(p))
-}
-
-func cgo_MyBuffer_Size(p *cgo_MyBuffer_T) C.int {
-	return C.MyBuffer_Size((*C.MyBuffer_T)(p))
-}
-```
---------------
-
----
-### Go访问C++对象: 包装为Go对象(01)
-------------------
-
-```go
-type MyBuffer struct {
-	cptr *cgo_MyBuffer_T
-}
-
-func NewMyBuffer(size int) *MyBuffer {
-	return &MyBuffer{
-		cptr: cgo_NewMyBuffer(size),
-	}
-}
-
-func (p *MyBuffer) Delete() {
-	cgo_DeleteMyBuffer(p.cptr)
-}
-```
--------------
-
-- 现在已经完全是 Go 语言的问题了
-
----
-### Go访问C++对象: 包装为Go对象(02)
-------------------
-
-```go
-func (p *MyBuffer) Data() []byte {
-	data := cgo_MyBuffer_Data(p.cptr)
-	size := cgo_MyBuffer_Size(p.cptr)
-	return ((*[1 << 31]byte)(unsafe.Pointer(data)))[0:int(size):int(size)]
-}
-```
-
-```go
 func main() {
-	buf := NewMyBuffer(1024)
-	defer buf.Delete()
 
-	copy(buf.Data(), []byte("hello\x00"))
-	C.puts((*C.char)(unsafe.Pointer(&(buf.Data()[0]))))
+	obj:=C.FpApi_create()
+	C.FpApi_initDie(obj,0.0,0.0, 2843,  2843)
+	C.FpApi_free(obj)
 }
 ```
 
--------
-
-- 切片包含了地址和长度, 两个方法合一
-- C 字符串需要 `'\0'` 结尾
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
 ***
@@ -2268,29 +1744,20 @@ $ gcc -shared -o libnumber.so number.c
 - 链接时 `libnumber.so` 和 `libnumber.a` 等价
 - macOS 需要设置 `DYLD_LIBRARY_PATH` 环境变量
 - Linux 需要设置 `LD_LIBRARY_PATH` 环境变量
-
 ---
-### 如何使用动态库 - dll 格式
-------------------
-
+### iEDA中 go调用ifp 使用的动态库和静态库
+---------
 ```
-; number/number.def
-LIBRARY number.dll
+package main
 
-EXPORTS
-number_add_mod
+/*
+#cgo CFLAGS:  -fPIC -fopenmp -O0 -Wall -g2 -ggdb -I/home/fsy/EDA/20230427/irefactor/src/operation/iFP/api 
+#cgo LDFLAGS:-L/home/fsy/EDA/20230427/irefactor/src/third_party/abseil/lib/unix -L/home/fsy/EDA/20230427/build/lib -Wl,-rpath,/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/home/fsy/EDA/20230427/irefactor/src/third_party/abseil/lib/unix:/home/fsy/EDA/20230427/build/lib:/usr/local/lib -fsanitize=address /home/fsy/EDA/20230427/build/lib/libgeometry_db.a /home/fsy/EDA/20230427/build/lib/libIdb.a /home/fsy/EDA/20230427/build/lib/libIdbBuilder.a /home/fsy/EDA/20230427/build/lib/libdef_builder.a /home/fsy/EDA/20230427/build/lib/liblef_builder.a /home/fsy/EDA/20230427/build/lib/libdef_service.a /home/fsy/EDA/20230427/build/lib/liblef_service.a /home/fsy/EDA/20230427/build/lib/libgeometry_db.a /home/fsy/EDA/20230427/build/lib/libIdb.a /home/fsy/EDA/20230427/build/lib/libIdbBuilder.a /home/fsy/EDA/20230427/build/lib/libdef_builder.a /home/fsy/EDA/20230427/build/lib/liblef_builder.a /home/fsy/EDA/20230427/build/lib/libdef_service.a /home/fsy/EDA/20230427/build/lib/liblef_service.a /home/fsy/EDA/20230427/build/lib/libifp_api.a -lm -lstdc++ /home/fsy/EDA/20230427/build/lib/libtool_manager.a /home/fsy/EDA/20230427/build/lib/libifp_init.a /home/fsy/EDA/20230427/build/lib/libifp_io_placer.a /home/fsy/EDA/20230427/build/lib/libifp_tapcell.a /home/fsy/EDA/20230427/build/lib/libtool_api_icts.a /home/fsy/EDA/20230427/build/lib/libtool_api_idrc.a /home/fsy/EDA/20230427/build/lib/libtool_api_ieval.a /home/fsy/EDA/20230427/build/lib/libtool_api_ifp.a /home/fsy/EDA/20230427/build/lib/libtool_api_ipdn.a /home/fsy/EDA/20230427/build/lib/libtool_api_ipl.a /home/fsy/EDA/20230427/build/lib/libtool_api_ipm.a /home/fsy/EDA/20230427/build/lib/libtool_api_irt.a /home/fsy/EDA/20230427/build/lib/libtool_api_ista.a /home/fsy/EDA/20230427/build/lib/libtool_api_ito.a /home/fsy/EDA/20230427/build/lib/libtool_api_ino.a /home/fsy/EDA/20230427/build/lib/libipm_api.a /home/fsy/EDA/20230427/build/lib/libipl-api.a /home/fsy/EDA/20230427/build/lib/libidm.a /home/fsy/EDA/20230427/build/lib/libito_source.a /home/fsy/EDA/20230427/build/lib/libino_source.a /home/fsy/EDA/20230427/build/lib/libfile_manager.a /home/fsy/EDA/20230427/build/lib/libidrc_api.a /home/fsy/EDA/20230427/build/lib/libista-engine.a /home/fsy/EDA/20230427/build/lib/libipm_source.a /home/fsy/EDA/20230427/build/lib/libipl-source.a /home/fsy/EDA/20230427/build/lib/libflow.a /home/fsy/EDA/20230427/build/lib/libeval_module.a /home/fsy/EDA/20230427/build/lib/libito_io.a /home/fsy/EDA/20230427/build/lib/libito_data.a /home/fsy/EDA/20230427/build/lib/libito_module.a /home/fsy/EDA/20230427/build/lib/libito_utility.a /home/fsy/EDA/20230427/build/lib/libino_io.a /home/fsy/EDA/20230427/build/lib/libino_module.a /home/fsy/EDA/20230427/build/lib/libicts_config.a /home/fsy/EDA/20230427/build/lib/libicts_database.a /home/fsy/EDA/20230427/build/lib/libicts_io.a /home/fsy/EDA/20230427/build/lib/libicts_balancer.a /home/fsy/EDA/20230427/build/lib/libicts_evaluator.a /home/fsy/EDA/20230427/build/lib/libicts_optimizer.a /home/fsy/EDA/20230427/build/lib/libicts_router.a /home/fsy/EDA/20230427/build/lib/libicts_synthesis.a /home/fsy/EDA/20230427/build/lib/libicts_api.a /home/fsy/EDA/20230427/build/lib/libicts_slew_aware.a /home/fsy/EDA/20230427/build/lib/libicts_cost_calculator.a /home/fsy/EDA/20230427/build/lib/libicts_timing_calculator.a /home/fsy/EDA/20230427/build/lib/libipm_top_manager.a /home/fsy/EDA/20230427/build/lib/libeval_api.a /home/fsy/EDA/20230427/build/lib/libieda_tcl.a /home/fsy/EDA/20230427/build/lib/libeval_congestion.a /home/fsy/EDA/20230427/build/lib/libeval_drc.a /home/fsy/EDA/20230427/build/lib/libeval_gds_wrapper.a /home/fsy/EDA/20230427/build/lib/libeval_power.a /home/fsy/EDA/20230427/build/lib/libeval_timing.a /home/fsy/EDA/20230427/build/lib/libeval_wirelength.a /home/fsy/EDA/20230427/build/lib/libeval_wrapper.a /home/fsy/EDA/20230427/build/lib/libito_api.a /home/fsy/EDA/20230427/build/lib/libino_api.a /home/fsy/EDA/20230427/build/lib/libipm_point_checker.a /home/fsy/EDA/20230427/build/lib/libipm_point_report.a /home/fsy/EDA/20230427/build/lib/libipm_point_generator.a /home/fsy/EDA/20230427/build/lib/libipm_point_sorter.a /home/fsy/EDA/20230427/build/lib/libipl-module-detail_placer.a /home/fsy/EDA/20230427/build/lib/libipl-module-legalizer.a /home/fsy/EDA/20230427/build/lib/libipl-module-wrapper.a /home/fsy/EDA/20230427/build/lib/libirt_api.a /home/fsy/EDA/20230427/build/lib/libtcl_config.a /home/fsy/EDA/20230427/build/lib/libtcl_idb.a /home/fsy/EDA/20230427/build/lib/libtcl_flow.a /home/fsy/EDA/20230427/build/lib/libtcl_icts.a /home/fsy/EDA/20230427/build/lib/libtcl_idrc.a /home/fsy/EDA/20230427/build/lib/libtcl_irt.a /home/fsy/EDA/20230427/build/lib/libtcl_ipm.a /home/fsy/EDA/20230427/build/lib/libtcl_ifp.a /home/fsy/EDA/20230427/build/lib/libtcl_ipdn.a /home/fsy/EDA/20230427/build/lib/libtcl_inst.a /home/fsy/EDA/20230427/build/lib/libtcl_ipl.a /home/fsy/EDA/20230427/build/lib/libtcl_ito.a /home/fsy/EDA/20230427/build/lib/libtcl_ista.a /home/fsy/EDA/20230427/build/lib/libtcl_report.a /home/fsy/EDA/20230427/build/lib/libtcl_ino.a /home/fsy/EDA/20230427/build/lib/libeval_data.a /home/fsy/EDA/20230427/build/lib/libipl_module_evaluator_wirelength.a /home/fsy/EDA/20230427/build/lib/libipl-analytical_placer.a /home/fsy/EDA/20230427/build/lib/libirt_source.a /home/fsy/EDA/20230427/build/lib/libieda_report.a /home/fsy/EDA/20230427/build/lib/libipdn_api.a /home/fsy/EDA/20230427/build/lib/libirt_data_manager.a /home/fsy/EDA/20230427/build/lib/libreport_basic.a /home/fsy/EDA/20230427/build/lib/libieda_report_db.a /home/fsy/EDA/20230427/build/lib/libieda_report_evaluator.a /home/fsy/EDA/20230427/build/lib/libieda_report_route.a /home/fsy/EDA/20230427/build/lib/libieda_report_place.a /home/fsy/EDA/20230427/build/lib/libieda_report_drc.a /home/fsy/EDA/20230427/build/lib/libipdn_plan.a /home/fsy/EDA/20230427/build/lib/libipdn_via.a /home/fsy/EDA/20230427/build/lib/libirt_detailed_router.a /home/fsy/EDA/20230427/build/lib/libirt_early_global_router.a /home/fsy/EDA/20230427/build/lib/libirt_gds_plotter.a /home/fsy/EDA/20230427/build/lib/libirt_global_router.a /home/fsy/EDA/20230427/build/lib/libirt_pin_accessor.a /home/fsy/EDA/20230427/build/lib/libirt_region_manager.a /home/fsy/EDA/20230427/build/lib/libirt_track_assigner.a /home/fsy/EDA/20230427/build/lib/libirt_violation_repairer.a /home/fsy/EDA/20230427/build/lib/libirt_universal_router.a /home/fsy/EDA/20230427/build/lib/libirt_logger.a /home/fsy/EDA/20230427/build/lib/libirt_monitor.a /home/fsy/EDA/20230427/build/lib/libirt_reporter.a /home/fsy/EDA/20230427/build/lib/libipdn_db.a /home/fsy/EDA/20230427/build/lib/libifp_api.a /home/fsy/EDA/20230427/build/lib/libtool_manager.a /home/fsy/EDA/20230427/build/lib/libifp_init.a /home/fsy/EDA/20230427/build/lib/libifp_io_placer.a /home/fsy/EDA/20230427/build/lib/libifp_tapcell.a /home/fsy/EDA/20230427/build/lib/libtool_api_icts.a /home/fsy/EDA/20230427/build/lib/libtool_api_idrc.a /home/fsy/EDA/20230427/build/lib/libtool_api_ieval.a /home/fsy/EDA/20230427/build/lib/libtool_api_ifp.a /home/fsy/EDA/20230427/build/lib/libtool_api_ipdn.a /home/fsy/EDA/20230427/build/lib/libtool_api_ipl.a /home/fsy/EDA/20230427/build/lib/libtool_api_ipm.a /home/fsy/EDA/20230427/build/lib/libtool_api_irt.a /home/fsy/EDA/20230427/build/lib/libtool_api_ista.a /home/fsy/EDA/20230427/build/lib/libtool_api_ito.a /home/fsy/EDA/20230427/build/lib/libtool_api_ino.a /home/fsy/EDA/20230427/build/lib/libipm_api.a /home/fsy/EDA/20230427/build/lib/libipl-api.a /home/fsy/EDA/20230427/build/lib/libidm.a /home/fsy/EDA/20230427/build/lib/libito_source.a /home/fsy/EDA/20230427/build/lib/libino_source.a /home/fsy/EDA/20230427/build/lib/libfile_manager.a /home/fsy/EDA/20230427/build/lib/libidrc_api.a /home/fsy/EDA/20230427/build/lib/libista-engine.a /home/fsy/EDA/20230427/build/lib/libipm_source.a /home/fsy/EDA/20230427/build/lib/libipl-source.a /home/fsy/EDA/20230427/build/lib/libflow.a /home/fsy/EDA/20230427/build/lib/libeval_module.a /home/fsy/EDA/20230427/build/lib/libito_io.a /home/fsy/EDA/20230427/build/lib/libito_data.a /home/fsy/EDA/20230427/build/lib/libito_module.a /home/fsy/EDA/20230427/build/lib/libito_utility.a /home/fsy/EDA/20230427/build/lib/libino_io.a /home/fsy/EDA/20230427/build/lib/libino_module.a /home/fsy/EDA/20230427/build/lib/libicts_config.a /home/fsy/EDA/20230427/build/lib/libicts_database.a /home/fsy/EDA/20230427/build/lib/libicts_io.a /home/fsy/EDA/20230427/build/lib/libicts_balancer.a /home/fsy/EDA/20230427/build/lib/libicts_evaluator.a /home/fsy/EDA/20230427/build/lib/libicts_optimizer.a /home/fsy/EDA/20230427/build/lib/libicts_router.a /home/fsy/EDA/20230427/build/lib/libicts_synthesis.a /home/fsy/EDA/20230427/build/lib/libicts_api.a /home/fsy/EDA/20230427/build/lib/libicts_slew_aware.a /home/fsy/EDA/20230427/build/lib/libicts_cost_calculator.a /home/fsy/EDA/20230427/build/lib/libicts_timing_calculator.a /home/fsy/EDA/20230427/build/lib/libipm_top_manager.a /home/fsy/EDA/20230427/build/lib/libeval_api.a /home/fsy/EDA/20230427/build/lib/libieda_tcl.a /home/fsy/EDA/20230427/build/lib/libeval_congestion.a /home/fsy/EDA/20230427/build/lib/libeval_drc.a /home/fsy/EDA/20230427/build/lib/libeval_gds_wrapper.a /home/fsy/EDA/20230427/build/lib/libeval_power.a /home/fsy/EDA/20230427/build/lib/libeval_timing.a /home/fsy/EDA/20230427/build/lib/libeval_wirelength.a /home/fsy/EDA/20230427/build/lib/libeval_wrapper.a /home/fsy/EDA/20230427/build/lib/libito_api.a /home/fsy/EDA/20230427/build/lib/libino_api.a /home/fsy/EDA/20230427/build/lib/libipm_point_checker.a /home/fsy/EDA/20230427/build/lib/libipm_point_report.a /home/fsy/EDA/20230427/build/lib/libipm_point_generator.a /home/fsy/EDA/20230427/build/lib/libipm_point_sorter.a /home/fsy/EDA/20230427/build/lib/libipl-module-detail_placer.a /home/fsy/EDA/20230427/build/lib/libipl-module-legalizer.a /home/fsy/EDA/20230427/build/lib/libipl-module-wrapper.a /home/fsy/EDA/20230427/build/lib/libirt_api.a /home/fsy/EDA/20230427/build/lib/libtcl_config.a /home/fsy/EDA/20230427/build/lib/libtcl_idb.a /home/fsy/EDA/20230427/build/lib/libtcl_flow.a /home/fsy/EDA/20230427/build/lib/libtcl_icts.a /home/fsy/EDA/20230427/build/lib/libtcl_idrc.a /home/fsy/EDA/20230427/build/lib/libtcl_irt.a /home/fsy/EDA/20230427/build/lib/libtcl_ipm.a /home/fsy/EDA/20230427/build/lib/libtcl_ifp.a /home/fsy/EDA/20230427/build/lib/libtcl_ipdn.a /home/fsy/EDA/20230427/build/lib/libtcl_inst.a /home/fsy/EDA/20230427/build/lib/libtcl_ipl.a /home/fsy/EDA/20230427/build/lib/libtcl_ito.a /home/fsy/EDA/20230427/build/lib/libtcl_ista.a /home/fsy/EDA/20230427/build/lib/libtcl_report.a /home/fsy/EDA/20230427/build/lib/libtcl_ino.a /home/fsy/EDA/20230427/build/lib/libeval_data.a /home/fsy/EDA/20230427/build/lib/libipl_module_evaluator_wirelength.a /home/fsy/EDA/20230427/build/lib/libipl-analytical_placer.a /home/fsy/EDA/20230427/build/lib/libirt_source.a /home/fsy/EDA/20230427/build/lib/libieda_report.a /home/fsy/EDA/20230427/build/lib/libipdn_api.a /home/fsy/EDA/20230427/build/lib/libirt_data_manager.a /home/fsy/EDA/20230427/build/lib/libreport_basic.a /home/fsy/EDA/20230427/build/lib/libieda_report_db.a /home/fsy/EDA/20230427/build/lib/libieda_report_evaluator.a /home/fsy/EDA/20230427/build/lib/libieda_report_route.a /home/fsy/EDA/20230427/build/lib/libieda_report_place.a /home/fsy/EDA/20230427/build/lib/libieda_report_drc.a /home/fsy/EDA/20230427/build/lib/libipdn_plan.a /home/fsy/EDA/20230427/build/lib/libipdn_via.a /home/fsy/EDA/20230427/build/lib/libirt_detailed_router.a /home/fsy/EDA/20230427/build/lib/libirt_early_global_router.a /home/fsy/EDA/20230427/build/lib/libirt_gds_plotter.a /home/fsy/EDA/20230427/build/lib/libirt_global_router.a /home/fsy/EDA/20230427/build/lib/libirt_pin_accessor.a /home/fsy/EDA/20230427/build/lib/libirt_region_manager.a /home/fsy/EDA/20230427/build/lib/libirt_track_assigner.a /home/fsy/EDA/20230427/build/lib/libirt_violation_repairer.a /home/fsy/EDA/20230427/build/lib/libirt_universal_router.a /home/fsy/EDA/20230427/build/lib/libirt_logger.a /home/fsy/EDA/20230427/build/lib/libirt_monitor.a /home/fsy/EDA/20230427/build/lib/libirt_reporter.a /home/fsy/EDA/20230427/build/lib/libipdn_db.a /home/fsy/EDA/20230427/build/lib/libicts_model.a /home/fsy/EDA/20230427/build/lib/libidrc_src.a /home/fsy/EDA/20230427/build/lib/libidrc_multi_pattern.a /home/fsy/EDA/20230427/build/lib/libidrc_spot_parser.a /home/fsy/EDA/20230427/build/lib/libidrc_shape_check.a /home/fsy/EDA/20230427/build/lib/libidrc_db.a /home/fsy/EDA/20230427/build/lib/libidrc_region_query.a /home/fsy/EDA/20230427/build/lib/libidrc_spacing_check.a /home/fsy/EDA/20230427/build/lib/libidrc_db.a /home/fsy/EDA/20230427/build/lib/libidrc_region_query.a /home/fsy/EDA/20230427/build/lib/libidrc_spacing_check.a /home/fsy/EDA/20230427/build/lib/libidrc_config.a /home/fsy/EDA/20230427/build/lib/libipl-configurator.a /usr/lib/gcc/x86_64-linux-gnu/10/libgomp.so /usr/lib/x86_64-linux-gnu/libpthread.so /home/fsy/EDA/20230427/build/lib/libipl-layout_checker.a /home/fsy/EDA/20230427/build/lib/libipl-module-filler.a /home/fsy/EDA/20230427/build/lib/libipl-module-grid_manager.a /home/fsy/EDA/20230427/build/lib/libipl-module-logger.a /home/fsy/EDA/20230427/build/lib/libipl-module-macro_placer.a /home/fsy/EDA/20230427/irefactor/src/operation/iPL/source/module/macro_placer/libs/libmetis.a /home/fsy/EDA/20230427/build/lib/libipl-center_placer.a /home/fsy/EDA/20230427/build/lib/libipl-module-topology_manager.a /home/fsy/EDA/20230427/build/lib/libeval_config.a /home/fsy/EDA/20230427/build/lib/libipm_logger.a /home/fsy/EDA/20230427/build/lib/libipl_module_evaluator_density.a /home/fsy/EDA/20230427/build/lib/libtcl_util.a /home/fsy/EDA/20230427/build/lib/libshell-cmd.a /home/fsy/EDA/20230427/build/lib/libeval_util.a /home/fsy/EDA/20230427/build/lib/libipl-solver-nesterov.a /home/fsy/EDA/20230427/build/lib/libusage.a /home/fsy/EDA/20230427/build/lib/libisr.a /home/fsy/EDA/20230427/build/lib/libflute.a /home/fsy/EDA/20230427/build/lib/libslute.a /home/fsy/EDA/20230427/build/lib/libsta.a /home/fsy/EDA/20230427/build/lib/libgraph.a /home/fsy/EDA/20230427/build/lib/libaocv-parser.a  -lyaml-cpp /home/fsy/EDA/20230427/build/lib/libreport.a /home/fsy/EDA/20230427/build/lib/libdelay.a /home/fsy/EDA/20230427/build/lib/libsdc-cmd.a /home/fsy/EDA/20230427/build/lib/libsdc.a /home/fsy/EDA/20230427/build/lib/libnetlist.a /home/fsy/EDA/20230427/build/lib/libtcl.a -ltcl8.6 /home/fsy/EDA/20230427/build/lib/libtime.a -labsl_base -labsl_int128 -labsl_city -labsl_hash -labsl_hashtablez_sampler -labsl_random_seed_gen_exception -labsl_random_seed_sequences -labsl_raw_hash_set -labsl_malloc_internal -labsl_spinlock_wait -labsl_synchronization -labsl_raw_logging_internal -labsl_time -labsl_time_zone -lstdc++fs /home/fsy/EDA/20230427/build/lib/libfort.a /home/fsy/EDA/20230427/build/lib/libliberty.a -labsl_throw_delegate /home/fsy/EDA/20230427/build/lib/libsta-solver.a /home/fsy/EDA/20230427/build/lib/libIdbBuilder.a /home/fsy/EDA/20230427/build/lib/libverilog_builder.a /home/fsy/EDA/20230427/build/lib/libutility.a /home/fsy/EDA/20230427/build/lib/libIdbBuilder.a /home/fsy/EDA/20230427/build/lib/libverilog_builder.a /home/fsy/EDA/20230427/build/lib/libutility.a /home/fsy/EDA/20230427/build/lib/libgds_builder.a /home/fsy/EDA/20230427/build/lib/libgdsii-parser.a /home/fsy/EDA/20230427/build/lib/libverilog-parser.a -Wl,-Bstatic -labsl_throw_delegate /home/fsy/EDA/20230427/build/lib/liblog.a -Wl,-Bdynamic -lgflags -lglog -lpthread -lunwind /home/fsy/EDA/20230427/build/lib/libdef_builder.a /home/fsy/EDA/20230427/irefactor/src/database/manager/parser/lefdef/def/lib/libdef.a /home/fsy/EDA/20230427/irefactor/src/database/manager/parser/lefdef/def/lib/libdefzlib.a /usr/local/lib/libz.so /home/fsy/EDA/20230427/build/lib/liblef_builder.a /home/fsy/EDA/20230427/irefactor/src/database/manager/parser/lefdef/lef/lib/liblef.a /home/fsy/EDA/20230427/build/lib/libdef_service.a /home/fsy/EDA/20230427/build/lib/liblef_service.a /home/fsy/EDA/20230427/build/lib/libIdb.a /home/fsy/EDA/20230427/build/lib/libtech_db.a /home/fsy/EDA/20230427/build/lib/libgeometry_db.a /home/fsy/EDA/20230427/build/lib/libstr.a -fsanitize=address /home/fsy/EDA/20230427/irefactor/src/third_party/abseil/lib/unix/libabsl_strings.so
+
+# include"ifp_api_wrapperC.h"
+*/
+import "C"
 ```
-
-```
-$ cl /c number.c
-$ link /DLL /OUT:number.dll number.obj number.def
-$ dlltool -dllname number.dll --def number.def --output-lib libnumber.a
-```
-
------------
-
-- MinGW 自带的 dlltool 工具可从 dll 生成 `libxxx.a` 文件
-- def 用于控制 dll 导出符号, 也用于生成 `libxxx.a` 文件
 
 
 ---
@@ -2332,22 +1799,6 @@ $ go build -buildmode=c-shared -o number.so
 - Windows 下可从静态库手工生成动态库
 
 
----
-### 如何导出动态库(B)
-----------------
-
-```
-go build -buildmode=c-archive -o number.a
-gcc -m64 -shared -o number.dll number.def number.a
-lib /def:number.def /machine:x64
-```
-
-----------
-
-- 先生成静态库 `number.a`
-- 基于 `number.a` 手工生成 dll
-- VC 的 lib 命令从 dll生成 `number.lib` 文件
-
 
 ---
 ### 动态库的风险
@@ -2382,15 +1833,8 @@ lib /def:number.def /machine:x64
 
 - CFLAGS/CPPFLAGS/CXXFLAGS
 - LDFLAGS
-- pkg-config
-- 自定义 pkg-config
-- `go get` 链
-- 多个非main包中导出C函数
 
------
 
-- CGO_XXX_ALLOW 白名单参数(Go1.10)
-- CC_FOR_goos_goarch(Go1.10)
 
 
 ---
@@ -2399,7 +1843,8 @@ lib /def:number.def /machine:x64
 
 - CFLAGS 只包含纯 C 代码(`*.c`)
 - CPPFLAGS 包含 C/C++ 代码(`*.c`,`*.cc`,`*.cpp`,`*.cxx`)
-- CXXFLAGS 只包含纯 C++ 代码(`*.cc`,`*.cpp`,`*.cxx`)
+- CXXFLAGS 只包含纯 C++ 代码(`*.cc`,`*.cpp`,`*.cxx`) 
+			不能使用类、命名空间等高级特性
 
 ---
 ### LDFLAGS
@@ -2408,166 +1853,67 @@ lib /def:number.def /machine:x64
 - 链接阶段没有C和C++之分
 - 链接库的路径必须是绝对路径(ld历史依赖问题)
 - cgo 中的 `${SRCDIR}` 为当前目录的绝对路径
-
----
-### pkg-config
--------------
-
-- `#cgo pkg-config xxx` 生成编译和链接参数
-- 底层调用 `pkg-config xxx --cflags` 生成编译参数
-- 底层调用 `pkg-config xxx --libs` 生成链接参数
-
-
----
-### pkg-config: bc 文件
--------------
+---------
+- cgo只支持gcc编译链接 gcc和g++区别不大 
+- 手动加上c++标准库
 
 ```
-# /usr/local/lib/pkgconfig/xxx.bc
-Name: xxx
-Cflags:-I/usr/local/include
-Libs:-L/usr/local/lib –lxxx2
+-lm -lstdc++
 ```
-
------
-
-- `PKG_CONFIG_PATH` 指定查询 bc 文件的目录
-- `#cgo pkg-config xxx` 对应 `xxx.bc` 文件
-- Cflags 对应编译参数
-- Libs 对应链接参数
-
----
-### 自定义 pkg-config(A)
--------------------
-
-- `PKG_CONFIG` 环境变量可指定自定义 pkg-config 程序
-- 只要处理好 `--cflags` 和 `--libs` 两个参数即可
-
------------
-
-- macOS 下 pkg-config 不支持 Python3
-- macOS 下 python3-config 用于生成 Python3 参数
-- macOS 下 python3-config 生成参数和 cgo 不兼容
-- 解决办法: 自定义 pkg-config
-
----
-### 自定义 pkg-config(B)
--------------------
-
-```go
-// py3-config.go
-func main() {
-	for _, s := range os.Args {
-		if s == "--cflags" {
-			out, _ := exec.Command("python3-config", "--cflags").CombinedOutput()
-			out = bytes.Replace(out, []byte("-arch"), []byte{}, -1)
-			out = bytes.Replace(out, []byte("i386"), []byte{}, -1)
-			out = bytes.Replace(out, []byte("x86_64"), []byte{}, -1)
-			fmt.Print(string(out))
-			return
-		}
-		if s == "--libs" {
-			out, _ := exec.Command("python3-config", "--ldflags").CombinedOutput()
-			fmt.Print(string(out))
-			return
-		}
-	}
-}
-```
-
-```
-$ go build -o py3-config py3-config.go
-$ PKG_CONFIG=./py3-config go build -buildmode=c-shared -o gopkg.so main.go
-```
-
-----
-
----
-### `go get` 链
---------------
-
-- `pkgA -> pkgB -> pkgC -> pkgD -> ...`
-- `go get pkgA` 会自动 `go get` 依赖的包
-- 如果 `go get pkgB` 失败将导致链条断裂
-
-
----
-### `go get` 链: 链条断裂的原因
---------------
-
-- 不支持某些系统, 编译失败
-- 依赖 cgo, 用户没有安装 gcc
-- 依赖 cgo, 但是依赖的库没有安装
-- 依赖 pkg-config, windows 上没有安装
-- 依赖 pkg-config, 没有找到对应的 bc 文件
-- 依赖 自定义的 pkg-config, 需要额外的配置
-- 依赖 swig, 用户没有安装 swig, 或版本不对
-
------
-
-- 既然用了cgo, gcc是无法绕过的依赖
-- 但是其它部分要做到 **零配置**
-
-
----
-### `go get` 链: 零配置
---------------
-
-```c
-// z_libwebp_src_dec_alpha.c
-#include "./internal/libwebp/src/dec/alpha.c"
-```
-
-```
-$ go get github.com/chai2010/webp
-```
-
------------
-
-- 包含全部的C/C++代码, go get 时从头构建
-- 在当前包创建代理C/C++文件, 包含真实的源文件
-- 避免打破原 C/C++ 库的目录结构
-
----
-### 多个非main包中导出C函数
--------------------------
-
-- 官方文档说明导出的Go函数要放main包
-
------
-
-- 真实情况是其它包的Go导出函数也是有效的
-- 因为导出后就可以当作C函数使用, 所以必须有效
-
------
-
-- cgo编程原则: 面向C接口编程, 必须手写头文件
-
------
-
-- 小问题: `_cgo_export.h` 只包含main包的导出函数
-- 手写头文件, 去掉对 `_cgo_export.h` 文件的依赖
-
-
----
-### CGO_XXX_ALLOW 白名单参数(Go1.10)
------------------
-
-- CGO_CFLAGS_ALLOW/CGO_CXXFLAGS_ALLOW
-- CGO_LDFLAGS_ALLOW
-
--------
-
-- gcc 的 `-fplugin` 可调用外部插件
-- go get 时会有安全漏洞
-- 白名单采用正则匹配
-
-
----
-### CC_FOR_goos_goarch(Go1.10)
------------------
-
-- cgo 交叉编译时指定gcc命令
-- 比如 CC_FOR_darwin_arm64 用于 iOS
 
 <!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  -->
+***
+## 编译与链接
+-------------
+1.编译与链接过程
+
+
+2.目标文件、动态库、可执行文件和静态库
+
+3.链接——符号解析与重定位
+
+4.API&ABI
+---
+
+### 1.编译与链接过程
+-------------------
+![](https://buaa007.oss-cn-beijing.aliyuncs.com/images%E7%BC%96%E8%AF%91%E4%B8%8E%E9%93%BE%E6%8E%A5.png)<!-- .element: style="width:50%;" -->
+---
+### 2.目标文件、动态库、可执行文件和静态库
+-------------------
+目标文件、动态库、可执行文件其存储格式都是elf，只是elf文件格式不同
+
+----------------
+静态库：
+多个目标文件捆绑成一个文件
+
+一个包含很多目标文件的压缩包
+
+ar -t libm.a 查看包含哪些.o文件
+
+---
+### 3.链接——符号修饰与函数签名
+--------------
+#### C 的符号修饰非常简单
+基本上就是函数或变量名本身
+
+-------------
+#### C++的符号修饰非常复杂
+C++拥有类、继承、重载、命名空间等特性，符号管理极其复杂
+
+![](https://buaa007.oss-cn-beijing.aliyuncs.com/imagesc.png)<!-- .element: style="width:50%;" -->
+
+保持与C的兼容性引入extern"C"{}:
+
+		在括号内C++的符号修饰机制将不会起作用
+
+---
+### 4.API&ABI
+------
+ABI （Application Binary Interface）
+决定目标文件之间是否二进制兼容
+- 内置类型
+- 组合类型
+- 符号修饰
+- 函数调用方式
+- 等等
