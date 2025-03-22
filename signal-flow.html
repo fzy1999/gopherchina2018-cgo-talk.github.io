@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复杂系统故障诊断平台 - 多信号流图构建</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- 自定义样式 -->
+    <style>
+        :root {
+            --primary-color: #3949ab;
+            --primary-light: #e8eaf6;
+            --secondary-color: #00acc1;
+            --dark-color: #37474f;
+            --light-color: #f5f7fa;
+            --border-radius: 8px;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        .sidebar {
+            min-height: 100vh;
+            background-color: var(--dark-color);
+            padding-top: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .sidebar h4 {
+            color: white;
+            font-weight: 600;
+        }
+
+        .main-content {
+            padding: 20px;
+        }
+
+        .nav-link {
+            color: #e0e0e0;
+            border-radius: var(--border-radius);
+            margin: 5px 0;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+        }
+
+        .card {
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            border: none;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            padding: 12px 16px;
+        }
+
+        .flow-diagram {
+            height: 600px;
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            overflow: hidden;
+        }
+
+        .flow-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .btn {
+            border-radius: var(--border-radius);
+            padding: 6px 16px;
+            font-weight: 500;
+        }
+
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: #303f9f;
+            border-color: #303f9f;
+        }
+
+        /* 对话窗口样式 */
+        .chat-container {
+            height: 800px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+            overflow: hidden;
+        }
+
+        .message-detail-title {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+
+        .message-detail-title::before {
+            content: '\f4ad';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            margin-right: 8px;
+        }
+
+        .chat-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: var(--light-color);
+        }
+
+        .input-area {
+            border-top: 1px solid #eee;
+            padding: 15px;
+            background-color: white;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 16px;
+            max-width: 85%;
+            word-wrap: break-word;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .user-message {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+            align-self: flex-end;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+
+        .assistant-message {
+            background-color: white;
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+
+        .thinking,
+        .tool-call,
+        .output,
+        .result {
+            font-size: 0.95rem;
+            padding: 12px;
+            border-radius: var(--border-radius);
+            margin-bottom: 12px;
+            transition: all 0.3s;
+        }
+
+        .thinking {
+            background-color: #f3e5f5;
+            border-left: 3px solid #9c27b0;
+        }
+
+        .tool-call {
+            background-color: #e8f5e9;
+            border-left: 3px solid #4caf50;
+        }
+
+        .output {
+            background-color: #e0f7fa;
+            border-left: 3px solid #00acc1;
+        }
+
+        .result {
+            background-color: #e8eaf6;
+            border-left: 3px solid #3f51b5;
+        }
+
+        .thinking::before {
+            content: '💭';
+            margin-right: 8px;
+        }
+
+        .tool-call::before {
+            content: '🛠️';
+            margin-right: 8px;
+        }
+
+        .output::before {
+            content: '📊';
+            margin-right: 8px;
+        }
+
+        .result::before {
+            content: '✓';
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
+        textarea {
+            resize: none;
+            overflow: auto;
+            height: 50px;
+            min-height: 50px;
+            max-height: 150px;
+            padding: 12px;
+            border-radius: var(--border-radius);
+            border: 1px solid #ddd;
+            transition: all 0.3s;
+            width: 100%;
+            font-size: 0.95rem;
+        }
+
+        textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(57, 73, 171, 0.25);
+            outline: none;
+        }
+
+        .input-select {
+            display: flex;
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        .model-selector {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .model-selector select {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            border: 1px solid #ddd;
+            background-color: white;
+        }
+
+        .prompt-btn {
+            margin-right: 10px;
+            background-color: var(--light-color);
+            border: 1px solid #ddd;
+            color: var(--dark-color);
+        }
+
+        .prompt-btn:hover {
+            background-color: #e0e0e0;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 24px;
+            border-radius: var(--border-radius);
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .modal-buttons button {
+            margin-left: 10px;
+            padding: 8px 16px;
+            border-radius: var(--border-radius);
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .modal-buttons button:first-child {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .modal-buttons button:last-child {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        /* 导航标签样式 */
+        .nav-tabs {
+            border-bottom: 2px solid #eee;
+        }
+
+        .nav-tabs .nav-link {
+            color: #666;
+            border: none;
+            padding: 12px 16px;
+            margin-right: 4px;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            transition: all 0.3s;
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: var(--primary-color);
+            background-color: rgba(57, 73, 171, 0.05);
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--primary-color);
+            background-color: white;
+            font-weight: 500;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        /* 表单元素样式 */
+        .form-label {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: var(--border-radius);
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(57, 73, 171, 0.25);
+        }
+
+        .file-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(57, 73, 171, 0.05);
+        }
+
+        .file-upload-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(57, 73, 171, 0.1);
+        }
+
+        .preview-container {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: var(--border-radius);
+            display: none;
+        }
+
+        .preview-container.show {
+            display: block;
+        }
+
+        .preview-container .file-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .preview-container .file-name {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .preview-container .remove-file {
+            color: #dc3545;
+            cursor: pointer;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 5px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <div class="col-md-2 sidebar">
+                <h4 class="text-center mb-4">故障诊断平台</h4>
+                <nav class="nav flex-column">
+                    <a class="nav-link" href="index.html"><i class="fas fa-database me-2"></i>诊断知识管理</a>
+                    <a class="nav-link active" href="signal-flow.html"><i
+                            class="fas fa-project-diagram me-2"></i>多信号流图构建</a>
+                    <a class="nav-link" href="fault-diagnosis.html"><i class="fas fa-search me-2"></i>故障诊断与定位</a>
+                </nav>
+            </div>
+
+            <!-- 主要内容区域 -->
+            <div class="col-md-10 main-content">
+                <h2 class="mb-4"><i class="fas fa-project-diagram me-2"></i>多信号流图构建</h2>
+                <ul class="nav nav-tabs mt-4" id="mainTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#flow-edit"><i
+                                class="fas fa-edit me-2"></i>信号流图编辑</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#matrix-gen"><i
+                                class="fas fa-table me-2"></i>测试依赖矩阵</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#data-binding"><i
+                                class="fas fa-link me-2"></i>数据绑定</a>
+                    </li>
+                </ul>
+
+                <div class="tab-content mt-4">
+                    <div id="flow-edit" class="tab-pane active">
+                        <!-- 操作指南 - 单独占据一行 -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <i class="fas fa-info-circle me-2"></i>操作指南
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-0">
+                                                    <h6><i class="fas fa-robot me-2"></i>使用AI助手</h6>
+                                                    <p class="text-muted small mb-1">
+                                                        在右侧输入框中描述您想要构建的信号流图需求，AI将帮助您自动构建基础流图。</p>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="mb-0">
+                                                    <h6><i class="fas fa-hand-pointer me-2"></i>手动编辑</h6>
+                                                    <p class="text-muted small mb-1">在中央流图编辑器中可以直接拖拽、连线，调整自动生成的流图。</p>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="mb-0">
+                                                    <h6><i class="fas fa-user-check me-2"></i>专家审核</h6>
+                                                    <p class="text-muted small mb-1">
+                                                        完成编辑后可以保存并分享给领域专家进行审核。点击对话可查看详细处理过程。</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 信号流图编辑工具和对话窗口 -->
+                        <div class="row">
+                            <!-- 流图编辑器（占左侧主要内容区） -->
+                            <div class="col-lg-8">
+                                <!-- 多信号流图编辑工具 -->
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <span><i class="fas fa-edit me-2"></i>信号流图编辑器</span>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-primary me-2"><i
+                                                    class="fas fa-save me-1"></i>保存</button>
+                                            <button class="btn btn-sm btn-outline-secondary"><i
+                                                    class="fas fa-file-export me-1"></i>导出</button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="flow-diagram" style="height: 650px;">
+                                            <iframe src="https://multi-flow-graph.vercel.app/#/" class="flow-iframe"
+                                                allowfullscreen></iframe>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 对话窗口（移动到右侧作为侧边栏） -->
+                            <div class="col-lg-4">
+                                <!-- 对话窗口 -->
+                                <div class="chat-container" style="height: 650px;">
+                                    <div class="message-detail-title">CLS Agent - 多信号流图自动构建助手</div>
+                                    <div class="chat-box" id="chat-box">
+                                        <!-- 预设的对话内容 -->
+                                        <div class="message user-message"
+                                            onclick="showMessageDetails(this, 'user-message-1')">
+                                            请为液压气冷子系统构建信号流图，需要包含故障传播路径
+                                        </div>
+
+                                        <div class="message assistant-message"
+                                            onclick="showMessageDetails(this, 'thinking-1')">
+                                            <div class="thinking">思考中 ...</div>
+                                            <div style="display: none;" data-detail-id="thinking-1">
+                                                分析用户需求：用户希望构建液压气冷子系统的多信号流图，需要包含故障传播路径。<br>
+                                                需要获取该子系统的组件信息、信号连接、故障模式和传播路径。<br>
+                                                使用工具获取相关信息。</div>
+                                        </div>
+
+                                        <div class="message assistant-message"
+                                            onclick="showMessageDetails(this, 'tool-call-1')">
+                                            <div class="tool-call">执行工具: 子系统索引读取
+                                                目的：获取液压气冷子系统的基本信息</div>
+                                            <div style="display: none;" data-detail-id="tool-call-1">
+                                                retrieveSubsystemInfo("液压气冷子系统")<br><br> ✅
+                                                子系统索引读取结果: {"id": "hyd-cool-001", "name": "液压气冷子系统", "description":
+                                                "负责为液压系统提供温度控制和散热功能"}</div>
+                                        </div>
+
+                                        <div class="message assistant-message"
+                                            onclick="showMessageDetails(this, 'output-1')">
+                                            <div class="output">规划行动中 ...</div>
+                                            <div style="display: none;" data-detail-id="output-1">📡
+                                                根据子系统信息，接下来需要获取：<br>
+                                                1. 子系统内部组件<br>
+                                                2. 组件间信号连接<br>
+                                                3. 潜在故障模式<br>
+                                                4. 故障传播路径</div>
+                                        </div>
+
+                                        <div class="message assistant-message"
+                                            onclick="showMessageDetails(this, 'tool-call-2')">
+                                            <div class="tool-call">执行工具: 本体知识库访问
+                                                目的：查询液压气冷子系统的组件信息</div>
+                                            <div style="display: none;" data-detail-id="tool-call-2">
+                                                queryComponents("hyd-cool-001")<br><br> ✅
+                                                本体知识库结果: {"components": [
+                                                {"id": "c001", "name": "冷却泵", "type": "active-component"},
+                                                {"id": "c002", "name": "散热器", "type": "passive-component"},
+                                                {"id": "c003", "name": "温度传感器", "type": "sensor"},
+                                                {"id": "c004", "name": "流量阀", "type": "control-component"},
+                                                {"id": "c005", "name": "液压控制器", "type": "controller"}
+                                                ]}</div>
+                                        </div>
+
+                                        <div class="message assistant-message"
+                                            onclick="showMessageDetails(this, 'tool-call-3')">
+                                            <div class="tool-call">执行工具: 本体知识库访问
+                                                目的：查询组件间信号连接</div>
+                                            <div style="display: none;" data-detail-id="tool-call-3">
+                                                querySignals("hyd-cool-001")<br><br> ✅ 本体知识库结果:
+                                                {"signals": [
+                                                {"id": "s001", "name": "温度反馈信号", "source": "c003", "target": "c005"},
+                                                {"id": "s002", "name": "泵控制信号", "source": "c005", "target": "c001"},
+                                                {"id": "s003", "name": "阀控制信号", "source": "c005", "target": "c004"},
+                                                {"id": "s004", "name": "冷却液流", "source": "c001", "target": "c002"},
+                                                {"id": "s005", "name": "散热器温度", "source": "c002", "target": "c003"}
+                                                ]}</div>
+                                        </div>
+
+                                        <div class="message assistant-message"
+                                            onclick="showMessageDetails(this, 'tool-call-4')">
+                                            <div class="tool-call">执行工具: FMECA表格流图读取
+                                                目的：获取故障模式和传播路径</div>
+                                            <div style="display: none;" data-detail-id="tool-call-4">
+                                                queryFMECA("hyd-cool-001")<br><br> ✅ FMECA表格结果:
+                                                {"faults": [
+                                                {"id": "f001", "name": "泵失效", "component": "c001", "effects": ["冷却液流中断",
+                                                "散热器温度升高"]},
+                                                {"id": "f002", "name": "散热器堵塞", "component": "c002", "effects":
+                                                ["散热效率降低", "温度升高"]},
+                                                {"id": "f003", "name": "传感器故障", "component": "c003", "effects":
+                                                ["温度信号异常", "控制失准"]},
+                                                {"id": "f004", "name": "流量阀卡死", "component": "c004", "effects":
+                                                ["流量控制异常"]}
+                                                ],
+                                                "propagation": [
+                                                {"fault": "f001", "propagation_path": ["c001", "c002", "c003", "c005"]},
+                                                {"fault": "f002", "propagation_path": ["c002", "c003", "c005", "c001"]},
+                                                {"fault": "f003", "propagation_path": ["c003", "c005", "c001", "c004"]},
+                                                {"fault": "f004", "propagation_path": ["c004", "c001", "c002", "c003"]}
+                                                ]}</div>
+                                        </div>
+
+                                        <div class="message assistant-message result"
+                                            onclick="showMessageDetails(this, 'result-1')">
+                                            <div class="result">已根据查询到的信息构建了液压气冷子系统的多信号流图。流图包含以下内容：
+
+                                                1. 组件：冷却泵、散热器、温度传感器、流量阀和液压控制器
+                                                2. 信号连接：温度反馈信号、泵控制信号、阀控制信号、冷却液流和散热器温度
+                                                3. 故障模式：泵失效、散热器堵塞、传感器故障和流量阀卡死
+                                                4. 故障传播路径：已标记所有故障的影响传播方向
+
+                                                流图已加载到编辑器中，您可以在左侧查看并进行编辑。需要进一步完善某个部分吗？</div>
+                                        </div>
+                                    </div>
+                                    <div class="input-area">
+                                        <textarea id="message-input" placeholder="输入你的问题或指令..."
+                                            onkeydown="if(event.keyCode === 13 && !event.shiftKey) { sendMessage(); event.preventDefault(); }"></textarea>
+                                        <div class="input-select">
+                                            <div class="model-selector">
+                                                <select id="model-select" class="form-select">
+                                                    <option value="DeepSeek-R1" selected>DeepSeek-R1</option>
+                                                    <option value="DeepSeek-V3">DeepSeek-V3</option>
+                                                    <option value="Hunyuan-Turbo">Hunyuan-Turbo</option>
+                                                    <option value="Hunyuan-T1">Hunyuan-T1</option>
+                                                </select>
+                                            </div>
+                                            <button class="btn prompt-btn" onclick="showPromptEditor()"><i
+                                                    class="fas fa-sliders-h me-1"></i>修改Prompt</button>
+                                            <button class="btn btn-primary" onclick="sendMessage()"><i
+                                                    class="fas fa-paper-plane me-1"></i>发送</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 添加处理结果查看区域 -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <span><i class="fas fa-code me-2"></i>构建助手处理详情</span>
+                                        <div>
+                                            <span class="text-muted me-3" id="current-detail-title">点击对话查看详情</span>
+                                            <button class="btn btn-sm btn-outline-primary me-2"
+                                                onclick="showAllDetails()">
+                                                <i class="fas fa-eye me-1"></i>显示所有细节
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary" onclick="hideAllDetails()">
+                                                <i class="fas fa-eye-slash me-1"></i>隐藏详情
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="border p-3 bg-light" id="detail-content"
+                                            style="height: 250px; overflow-y: auto;">
+                                            <div class="text-center text-muted py-5">
+                                                <i class="fas fa-hand-pointer mb-3" style="font-size: 2rem;"></i>
+                                                <p>点击左侧对话内容查看处理详情</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="matrix-gen" class="tab-pane">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <span>测试依赖矩阵</span>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-primary me-2">生成矩阵</button>
+                                            <button class="btn btn-sm btn-outline-secondary">导出矩阵</button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered">
+                                                <thead>
+                                                    <tr>
+                                                        <th>故障节点</th>
+                                                        <th>测试1</th>
+                                                        <th>测试2</th>
+                                                        <th>测试3</th>
+                                                        <th>测试4</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>故障1</td>
+                                                        <td>1</td>
+                                                        <td>0</td>
+                                                        <td>1</td>
+                                                        <td>0</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>故障2</td>
+                                                        <td>0</td>
+                                                        <td>1</td>
+                                                        <td>0</td>
+                                                        <td>1</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>故障3</td>
+                                                        <td>1</td>
+                                                        <td>1</td>
+                                                        <td>0</td>
+                                                        <td>1</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">矩阵分析</div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <h6>矩阵统计</h6>
+                                            <ul class="list-group">
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    故障节点数
+                                                    <span class="badge bg-primary rounded-pill">3</span>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    测试节点数
+                                                    <span class="badge bg-primary rounded-pill">4</span>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    覆盖率
+                                                    <span class="badge bg-success rounded-pill">85%</span>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div class="alert alert-info">
+                                            <h6>分析结果</h6>
+                                            <p class="mb-0">当前矩阵具有良好的故障隔离性，每个故障都有唯一的测试组合。</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="data-binding" class="tab-pane">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">测点数据绑定</div>
+                                    <div class="card-body">
+                                        <form>
+                                            <div class="mb-3">
+                                                <label class="form-label">选择测点</label>
+                                                <select class="form-select">
+                                                    <option>测试1 - 温度传感器</option>
+                                                    <option>测试2 - 压力传感器</option>
+                                                    <option>测试3 - 振动传感器</option>
+                                                    <option>测试4 - 电流传感器</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">数据源</label>
+                                                <select class="form-select">
+                                                    <option>实时数据</option>
+                                                    <option>历史数据</option>
+                                                    <option>模拟数据</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">时间范围</label>
+                                                <div class="input-group">
+                                                    <input type="datetime-local" class="form-control">
+                                                    <span class="input-group-text">至</span>
+                                                    <input type="datetime-local" class="form-control">
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">绑定数据</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">数据预览</div>
+                                    <div class="card-body">
+                                        <div
+                                            style="height: 300px; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                                            <p>数据曲线图显示区域</p>
+                                        </div>
+                                        <div class="mt-3">
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="checkbox" id="showRaw">
+                                                <label class="form-check-label" for="showRaw">显示原始数据</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="checkbox" id="showProcessed">
+                                                <label class="form-check-label" for="showProcessed">显示处理后数据</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- 聊天功能JS -->
+    <script>
+        let currentSessionId = null;
+        let currentSessionIdShow = null;
+        let last_type = null;
+        let last_chatDiv = null;
+        let currentModel = "DeepSeek-R1";
+
+        // 显示Prompt编辑模态框
+        function showPromptEditor() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <textarea id="prompt-input" style="width: 100%; height: 200px;" placeholder="输入新的Prompt..."></textarea>
+                    <div class="modal-buttons">
+                        <button onclick="savePrompt()">确认</button>
+                        <button onclick="closeModal()">取消</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.style.display = 'flex';
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            const modal = document.querySelector('.modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // 保存Prompt
+        function savePrompt() {
+            const promptInput = document.getElementById('prompt-input');
+            const newPrompt = promptInput.value.trim();
+            if (newPrompt) {
+                // 这里可以添加保存Prompt的逻辑，比如发送到服务器
+                console.log('New Prompt:', newPrompt);
+                alert('Prompt修改成功！');
+            }
+            closeModal();
+        }
+
+        // 显示消息详情
+        function showMessageDetails(messageElement, detailId) {
+            // 找到当前点击的消息中的详情元素
+            const detailElement = messageElement.querySelector(`[data-detail-id="${detailId}"]`);
+
+            if (!detailElement) {
+                return; // 如果没有找到详情元素，直接返回
+            }
+
+            // 获取详情内容
+            const detailContent = detailElement.innerHTML;
+
+            // 更新详情面板
+            const detailContentElement = document.getElementById('detail-content');
+            const currentDetailTitle = document.getElementById('current-detail-title');
+
+            // 根据消息类型设置不同的标题
+            let title = "对话详情";
+            if (detailId.includes('thinking')) {
+                title = "思考过程";
+            } else if (detailId.includes('tool-call')) {
+                title = "工具调用与结果";
+            } else if (detailId.includes('output')) {
+                title = "处理输出";
+            } else if (detailId.includes('result')) {
+                title = "最终结果";
+            }
+
+            currentDetailTitle.textContent = title;
+
+            // 更新详情内容
+            if (detailContent) {
+                detailContentElement.innerHTML = `<pre class="mb-0">${detailContent}</pre>`;
+            } else {
+                detailContentElement.innerHTML = `<div class="text-center text-muted py-5">
+                    <p>该消息没有额外详情</p>
+                </div>`;
+            }
+
+            // 高亮当前选中的消息
+            const allMessages = document.querySelectorAll('.message');
+            allMessages.forEach(msg => {
+                msg.style.border = '';
+            });
+
+            messageElement.style.border = '2px solid var(--primary-color)';
+        }
+
+        // 显示所有详情
+        function showAllDetails() {
+            const hiddenContents = document.querySelectorAll('.message div[style="display: none;"]');
+            hiddenContents.forEach(content => {
+                content.style.display = 'block';
+            });
+
+            document.getElementById('current-detail-title').textContent = "已显示所有详情";
+        }
+
+        // 隐藏所有详情
+        function hideAllDetails() {
+            const hiddenContents = document.querySelectorAll('.message div[style="display: none;"], .message div[data-detail-id]');
+            hiddenContents.forEach(content => {
+                content.style.display = 'none';
+            });
+
+            // 重置高亮
+            const allMessages = document.querySelectorAll('.message');
+            allMessages.forEach(msg => {
+                msg.style.border = '';
+            });
+
+            // 重置详情面板
+            document.getElementById('detail-content').innerHTML = `<div class="text-center text-muted py-5">
+                <i class="fas fa-hand-pointer mb-3" style="font-size: 2rem;"></i>
+                <p>点击左侧对话内容查看处理详情</p>
+            </div>`;
+            document.getElementById('current-detail-title').textContent = "点击对话查看详情";
+        }
+
+        // 添加消息详情
+        function appendMessageDetail(message) {
+            if (last_chatDiv && message) {
+                const hiddenContent = last_chatDiv.querySelector('div[style="display: none;"]');
+                if (hiddenContent) {
+                    hiddenContent.innerHTML = message;
+                }
+            }
+        }
+
+        // 发送消息
+        function sendMessage() {
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value.trim();
+
+            if (message) {
+                // 添加用户消息
+                const chatBox = document.getElementById('chat-box');
+                const userMessageId = `user-message-${Date.now()}`;
+
+                const userDiv = document.createElement('div');
+                userDiv.className = 'message user-message';
+                userDiv.onclick = function () { showMessageDetails(this, userMessageId); };
+                userDiv.innerHTML = message;
+
+                // 添加隐藏详情元素
+                const hiddenContent = document.createElement('div');
+                hiddenContent.style.display = 'none';
+                hiddenContent.setAttribute('data-detail-id', userMessageId);
+                userDiv.appendChild(hiddenContent);
+
+                chatBox.appendChild(userDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                // 清空输入框
+                messageInput.value = '';
+
+                // 在这里可以添加发送到后端的逻辑
+                // 模拟AI响应，实际项目中这里应该是调用API
+                setTimeout(() => {
+                    appendMessage('assistant', 'thinking', '思考中 ...', '用户询问：' + message + '\n\n分析用户需求...');
+                }, 500);
+            }
+        }
+
+        // 添加新消息
+        function appendMessage(role, type, chat, message = "") {
+            const chatBox = document.getElementById('chat-box');
+            const detailId = `${type}-${Date.now()}`;
+
+            const chatDiv = document.createElement('div');
+            chatDiv.className = `message ${role}-message`;
+            chatDiv.onclick = function () { showMessageDetails(this, detailId); }
+            chatDiv.style.cursor = 'pointer';
+            last_chatDiv = chatDiv;
+
+            if (type === 'thinking') {
+                chatDiv.innerHTML = `<div class="thinking"> 💭 ${chat}</div>`;
+            } else if (type === 'tool') {
+                chatDiv.innerHTML = `<div class="tool-call"> ${chat}</div>`;
+            } else if (type === 'output') {
+                chatDiv.innerHTML = `<div class="output"> ${chat}</div>`;
+            } else if (type === 'planer') {
+                chatDiv.innerHTML = `<div class="output">${chat}</div>`;
+            } else if (type === 'result') {
+                chatDiv.innerHTML = `<div class="result">${chat}</div>`;
+                chatDiv.classList.add("result")
+            } else {
+                chatDiv.innerHTML = chat;
+            }
+
+            // 创建隐藏的原始消息内容
+            const hiddenContent = document.createElement('div');
+            hiddenContent.style.display = 'none';
+            hiddenContent.setAttribute('data-detail-id', detailId);
+            chatDiv.appendChild(hiddenContent);
+
+            chatBox.appendChild(chatDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            appendMessageDetail(message);
+
+            // 添加鼠标悬停效果
+            chatDiv.addEventListener('mouseover', function () {
+                if (!this.style.border || this.style.border === '') {
+                    this.style.boxShadow = '0 0 0 2px rgba(57, 73, 171, 0.25)';
+                }
+            });
+            chatDiv.addEventListener('mouseout', function () {
+                if (!this.style.border || this.style.border === '') {
+                    this.style.boxShadow = '';
+                }
+            });
+        }
+
+        // 自定义选项卡切换功能
+        document.addEventListener('DOMContentLoaded', function () {
+            // 获取所有导航选项卡
+            const tabLinks = document.querySelectorAll('#mainTabs .nav-link');
+
+            // 为每个选项卡添加点击事件
+            tabLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+
+                    // 移除所有选项卡的active类
+                    tabLinks.forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+
+                    // 隐藏所有选项卡内容
+                    const tabContents = document.querySelectorAll('.tab-pane');
+                    tabContents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+
+                    // 激活当前点击的选项卡
+                    this.classList.add('active');
+
+                    // 显示对应的内容
+                    const tabId = this.getAttribute('href');
+                    document.querySelector(tabId).classList.add('active');
+                });
+            });
+
+            // 添加鼠标悬停样式
+            const allMessages = document.querySelectorAll('.message');
+            allMessages.forEach(msg => {
+                msg.style.cursor = 'pointer';
+                msg.addEventListener('mouseover', function () {
+                    if (!this.style.border || this.style.border === '') {
+                        this.style.boxShadow = '0 0 0 2px rgba(57, 73, 171, 0.25)';
+                    }
+                });
+                msg.addEventListener('mouseout', function () {
+                    if (!this.style.border || this.style.border === '') {
+                        this.style.boxShadow = '';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

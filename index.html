@@ -1,68 +1,1781 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
+<html lang="zh-CN">
 
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复杂系统故障诊断平台 - 诊断知识管理</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- 自定义样式 -->
+    <style>
+        :root {
+            --primary-color: #3949ab;
+            --primary-light: #e8eaf6;
+            --secondary-color: #00acc1;
+            --dark-color: #37474f;
+            --light-color: #f5f7fa;
+            --border-radius: 8px;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
 
-	<title>深入CGO编程</title>
-	<meta name="author" content="chaishushan@gmail.com">
-	<meta name="copyright" content="2018 ChaiShushan <chaishushan{AT}gmail.com>. All rights reserved">
-	<meta name="description" content="深入CGO编程">
-	<meta name="keywords" content="golang,gopherchina,gopherchina2018,cgo">
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-color);
+            color: #333;
+        }
 
-	<link rel="stylesheet" href="reveal.js-3.6.0/css/reveal.css">
-	<link rel="stylesheet" href="reveal.js-3.6.0/css/theme/black.css">
-	<link rel="stylesheet" href="reveal.js-3.6.0/lib/css/zenburn.css">
-	<link rel="stylesheet" href="style.css">
+        .sidebar {
+            min-height: 100vh;
+            background-color: var(--dark-color);
+            padding-top: 20px;
+            box-shadow: var(--shadow);
+        }
 
-	<script src="reveal.js-3.6.0/lib/js/head.min.js"></script>
-	<script src="reveal.js-3.6.0/js/reveal.js"></script>
+        .sidebar h4 {
+            color: white;
+            font-weight: 600;
+        }
 
-	<style>
-		body:after {
-			/* content: url(./images/logo.png); */
-			position: fixed;
-			bottom: 2em;
-			left: 3em;
-			z-index:-1;
-		}
-	</style>
+        .main-content {
+            padding: 20px;
+        }
+
+        .nav-link {
+            color: #e0e0e0;
+            border-radius: var(--border-radius);
+            margin: 5px 0;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            font-weight: 600;
+            padding: 15px 20px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: #303f9f;
+            border-color: #303f9f;
+        }
+
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn {
+            border-radius: var(--border-radius);
+            padding: 8px 16px;
+            font-weight: 500;
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: var(--border-radius);
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(57, 73, 171, 0.25);
+        }
+
+        .nav-tabs .nav-link {
+            color: #495057;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            padding: 10px 15px;
+            font-weight: 500;
+        }
+
+        .nav-tabs .nav-link:hover {
+            background-color: #f8f9fa;
+            border-color: transparent;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--primary-color);
+            background-color: white;
+            border-color: #dee2e6 #dee2e6 white;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        .list-group-item {
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            padding: 12px 15px;
+        }
+
+        .list-group-item:first-child {
+            border-top-left-radius: var(--border-radius);
+            border-top-right-radius: var(--border-radius);
+        }
+
+        .list-group-item:last-child {
+            border-bottom-left-radius: var(--border-radius);
+            border-bottom-right-radius: var(--border-radius);
+        }
+
+        .file-upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            text-align: center;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary-color);
+            background-color: #e9ecef;
+        }
+
+        .annotation-text {
+            min-height: 300px;
+            border: 1px solid #dee2e6;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: white;
+        }
+
+        .term-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .processing-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .vector-preview {
+            height: 200px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-bottom: 20px;
+            overflow: auto;
+        }
+
+        .version-history {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* 确保tab内容能够正确显示和隐藏 */
+        .tab-content>.tab-pane {
+            display: none;
+        }
+
+        .tab-content>.active {
+            display: block;
+        }
+
+        /* 图标样式 */
+        .nav-link i {
+            margin-right: 8px;
+        }
+
+        /* 表格样式 */
+        .table {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        .table thead th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        /* 徽章样式 */
+        .badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+    </style>
 </head>
 
-<!-- *** 横向分隔, --- 竖向分隔, Note: 讲稿注释  -->
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <div class="col-md-2 sidebar">
+                <h4 class="text-center mb-4">故障诊断平台</h4>
+                <nav class="nav flex-column">
+                    <a class="nav-link active" href="index.html"><i class="fas fa-database"></i> 诊断知识管理</a>
+                    <a class="nav-link" href="signal-flow.html"><i class="fas fa-project-diagram"></i> 多信号流图构建</a>
+                    <a class="nav-link" href="fault-diagnosis.html"><i class="fas fa-search"></i> 故障诊断与定位</a>
+                </nav>
+            </div>
 
-<div id="main" class="reveal">
-	<div class="slides">
-		<section data-markdown="index.md"
-			data-separator="\n\*\*\*\r?\n"
-			data-separator-vertical="\n---\r?\n"
-			data-separator-notes="\n[Nn]ote:">
-		</section>
-	</div>
-</div>
+            <!-- 主要内容区域 -->
+            <div class="col-md-10 main-content">
+                <h2 class="mb-4"><i class="fas fa-database me-2"></i>诊断知识管理</h2>
+                <ul class="nav nav-tabs mt-4" id="mainTabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#ontology-modeling" role="tab"><i
+                                class="fas fa-brain"></i> 本体模型构建</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#knowledge-input" role="tab"><i
+                                class="fas fa-keyboard"></i> 知识录入</a>
+                    </li>
 
-<script>
-Reveal.initialize({
-	controls: true,
-	progress: true,
-	history: true,
-	center: true,
-	slideNumber: true,
-	mouseWheel: true,
-	rollingLinks: true,
-	showNotes: false, // hit 's' on your keyboard
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#knowledge-ontology" role="tab"><i
+                                class="fas fa-sitemap"></i> 本体映射</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#knowledge-processing" role="tab"><i
+                                class="fas fa-cogs"></i> 知识处理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#knowledge-search" role="tab"><i
+                                class="fas fa-search"></i> 知识检索</a>
+                    </li>
 
-	transition: 'convex', // none/fade/slide/convex/concave/zoom
+                </ul>
 
-	// Optional libraries used to extend on reveal.js
-	dependencies: [
-		{ src: 'reveal.js-3.6.0/lib/js/classList.js', condition: function() { return !document.body.classList; } },
-		{ src: 'reveal.js-3.6.0/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
-		{ src: 'reveal.js-3.6.0/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
-		{ src: 'reveal.js-3.6.0/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
-		{ src: 'reveal.js-3.6.0/plugin/zoom-js/zoom.js', async: true },
-		{ src: 'reveal.js-3.6.0/plugin/notes/notes.js' }
-	]
-});
-</script>
+                <div class="tab-content mt-3">
+                    <!-- 知识录入 -->
+                    <div id="knowledge-input" class="tab-pane fade show active" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">文本知识录入</div>
+                                    <div class="card-body">
+                                        <form>
+                                            <div class="mb-3">
+                                                <label class="form-label">文档类型</label>
+                                                <select class="form-select">
+                                                    <option>技术文档</option>
+                                                    <option>维修案例</option>
+                                                    <option>手册说明</option>
+                                                    <option>运维日志</option>
+                                                    <option>FMECA表格</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">文件上传</label>
+                                                <div class="file-upload-area">
+                                                    <input type="file" class="d-none" id="fileInput"
+                                                        accept=".pdf,.doc,.docx,.txt,.xlsx,.csv">
+                                                    <p class="mb-0">点击或拖拽文件到此处上传</p>
+                                                    <small class="text-muted">支持PDF、Word、文本、Excel和CSV文件</small>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">文本内容</label>
+                                                <textarea class="form-control" rows="5"
+                                                    placeholder="直接粘贴文本内容..."></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">预处理选项</label>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="preprocess1">
+                                                    <label class="form-check-label" for="preprocess1">自动分句</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="preprocess2">
+                                                    <label class="form-check-label" for="preprocess2">去除特殊字符</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="preprocess3">
+                                                    <label class="form-check-label"
+                                                        for="preprocess3">OCR识别（图片文档）</label>
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">提交</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">结构化知识录入</div>
+                                    <div class="card-body">
+                                        <!-- 添加选项卡导航 -->
+                                        <ul class="nav nav-tabs mb-3" id="structuredDataTabs" role="tablist">
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link active" id="case-tab" data-bs-toggle="tab"
+                                                    data-bs-target="#case-tab-pane" type="button"
+                                                    role="tab">案例库</button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="fmeca-tab" data-bs-toggle="tab"
+                                                    data-bs-target="#fmeca-tab-pane" type="button"
+                                                    role="tab">FMECA表格</button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="general-tab" data-bs-toggle="tab"
+                                                    data-bs-target="#general-tab-pane" type="button"
+                                                    role="tab">通用表格</button>
+                                            </li>
+                                        </ul>
 
+                                        <!-- 选项卡内容 -->
+                                        <div class="tab-content" id="structuredDataTabContent">
+                                            <!-- 案例库 -->
+                                            <div class="tab-pane fade show active" id="case-tab-pane" role="tabpanel"
+                                                aria-labelledby="case-tab">
+                                                <form>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">案例标题</label>
+                                                        <input type="text" class="form-control" placeholder="输入案例标题">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">故障现象</label>
+                                                        <textarea class="form-control" rows="2"
+                                                            placeholder="描述故障现象"></textarea>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">故障原因</label>
+                                                        <textarea class="form-control" rows="2"
+                                                            placeholder="分析故障原因"></textarea>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">解决方案</label>
+                                                        <textarea class="form-control" rows="3"
+                                                            placeholder="详述解决方案"></textarea>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">相关部件</label>
+                                                        <input type="text" class="form-control" placeholder="输入相关部件">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">批量导入</label>
+                                                        <div class="file-upload-area">
+                                                            <input type="file" class="d-none" id="caseBatchInput"
+                                                                accept=".xlsx,.csv">
+                                                            <p class="mb-0">点击或拖拽文件到此处上传</p>
+                                                            <small class="text-muted">支持Excel和CSV格式</small>
+                                                        </div>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary">提交</button>
+                                                </form>
+                                            </div>
+
+                                            <!-- FMECA表格 -->
+                                            <div class="tab-pane fade" id="fmeca-tab-pane" role="tabpanel"
+                                                aria-labelledby="fmeca-tab">
+                                                <form>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">部件名称</label>
+                                                        <input type="text" class="form-control" placeholder="输入部件名称">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">部件ID</label>
+                                                        <input type="text" class="form-control" placeholder="输入部件ID">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">功能</label>
+                                                        <textarea class="form-control" rows="2"
+                                                            placeholder="描述部件功能"></textarea>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">失效模式</label>
+                                                        <input type="text" class="form-control" placeholder="输入失效模式">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">失效原因</label>
+                                                        <textarea class="form-control" rows="2"
+                                                            placeholder="分析失效原因"></textarea>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">失效影响</label>
+                                                        <textarea class="form-control" rows="2"
+                                                            placeholder="描述失效影响"></textarea>
+                                                    </div>
+                                                    <div class="row mb-3">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label">严重度(S)</label>
+                                                            <select class="form-select">
+                                                                <option>1</option>
+                                                                <option>2</option>
+                                                                <option>3</option>
+                                                                <option>4</option>
+                                                                <option>5</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label">发生度(O)</label>
+                                                            <select class="form-select">
+                                                                <option>1</option>
+                                                                <option>2</option>
+                                                                <option>3</option>
+                                                                <option>4</option>
+                                                                <option>5</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label">检测度(D)</label>
+                                                            <select class="form-select">
+                                                                <option>1</option>
+                                                                <option>2</option>
+                                                                <option>3</option>
+                                                                <option>4</option>
+                                                                <option>5</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">批量导入</label>
+                                                        <div class="file-upload-area">
+                                                            <input type="file" class="d-none" id="fmecaBatchInput"
+                                                                accept=".xlsx,.csv">
+                                                            <p class="mb-0">点击或拖拽文件到此处上传</p>
+                                                            <small class="text-muted">支持Excel和CSV格式</small>
+                                                        </div>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary">提交</button>
+                                                </form>
+                                            </div>
+
+                                            <!-- 通用表格 -->
+                                            <div class="tab-pane fade" id="general-tab-pane" role="tabpanel"
+                                                aria-labelledby="general-tab">
+                                                <form>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">表格类型</label>
+                                                        <select class="form-select">
+                                                            <option>维修记录</option>
+                                                            <option>测试数据</option>
+                                                            <option>故障码表</option>
+                                                            <option>设备清单</option>
+                                                            <option>其他</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">表格名称</label>
+                                                        <input type="text" class="form-control" placeholder="输入表格名称">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">表格说明</label>
+                                                        <textarea class="form-control" rows="2"
+                                                            placeholder="输入表格说明"></textarea>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">表格数据</label>
+                                                        <div class="file-upload-area">
+                                                            <input type="file" class="d-none" id="generalBatchInput"
+                                                                accept=".xlsx,.csv,.json">
+                                                            <p class="mb-0">点击或拖拽文件到此处上传</p>
+                                                            <small class="text-muted">支持Excel、CSV和JSON格式</small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">数据验证</label>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox"
+                                                                id="validateRequired" checked>
+                                                            <label class="form-check-label"
+                                                                for="validateRequired">验证必填字段</label>
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox"
+                                                                id="validateFormat" checked>
+                                                            <label class="form-check-label"
+                                                                for="validateFormat">验证数据格式</label>
+                                                        </div>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary">提交</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 知识标注 -->
+                    <div id="knowledge-annotation" class="tab-pane fade" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-header">知识标注</div>
+                                    <div class="card-body">
+                                        <div class="annotation-text" contenteditable="true">
+                                            发动机启动异常，经检查发现点火系统存在故障。
+                                            通过对传感器数据分析，确定是火花塞磨损导致的问题。
+                                            建议更换火花塞并检查点火线圈。
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-primary">保存标注</button>
+                                            <button class="btn btn-secondary">取消</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">标注工具</div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">标注类型</label>
+                                            <select class="form-select">
+                                                <option>故障现象</option>
+                                                <option>系统组件</option>
+                                                <option>数据指标</option>
+                                                <option>部件</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">预定义术语</label>
+                                            <div class="term-list">
+                                                <div class="list-group">
+                                                    <a href="#" class="list-group-item list-group-item-action">火花塞</a>
+                                                    <a href="#" class="list-group-item list-group-item-action">点火系统</a>
+                                                    <a href="#" class="list-group-item list-group-item-action">传感器</a>
+                                                    <a href="#" class="list-group-item list-group-item-action">发动机</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-outline-primary w-100 mb-2">标注选中文本</button>
+                                        <button class="btn btn-outline-secondary w-100">取消标注</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 本体映射 -->
+                    <div id="knowledge-ontology" class="tab-pane fade" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">本体映射</div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">映射来源类型</label>
+                                            <select class="form-select" id="mapping-source-type">
+                                                <option value="document">文档</option>
+                                                <option value="timeseries">时序数据</option>
+                                                <option value="signalflow">多信号流图</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- 文档来源选择 -->
+                                        <div class="mb-3 mapping-source" id="document-source">
+                                            <label class="form-label">选择文档</label>
+                                            <select class="form-select">
+                                                <option>故障案例 #001</option>
+                                                <option>维修手册 - 控制系统部分</option>
+                                                <option>专家经验记录 #042</option>
+                                                <option>FMECA分析报告</option>
+                                                <option>控制系统技术说明书</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- 时序数据来源选择 -->
+                                        <div class="mb-3 mapping-source d-none" id="timeseries-source">
+                                            <label class="form-label">选择时序数据</label>
+                                            <select class="form-select">
+                                                <option>发动机传感器数据-2024/03/15</option>
+                                                <option>控制系统运行记录-2024/03/10</option>
+                                                <option>测试台运行数据-2024/02/28</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- 多信号流图来源选择 -->
+                                        <div class="mb-3 mapping-source d-none" id="signalflow-source">
+                                            <label class="form-label">选择多信号流图</label>
+                                            <select class="form-select">
+                                                <option>发动机控制流图-v1.2</option>
+                                                <option>燃油系统信号流-v2.0</option>
+                                                <option>电气系统流图-v1.5</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">选择本体模型</label>
+                                            <div class="ontology-mapping-cascade">
+                                                <!-- 第一阶段：本体类型 -->
+                                                <div class="mb-2">
+                                                    <label class="form-label small text-muted">本体类型</label>
+                                                    <select class="form-select" id="ontology-type-select">
+                                                        <option value="">-- 选择本体类型 --</option>
+                                                        <option value="diagnosis">诊断模型本体</option>
+                                                        <option value="data">数据本体</option>
+                                                        <option value="system">系统结构本体</option>
+                                                        <option value="test">测试本体</option>
+                                                        <option value="fault">故障模式本体</option>
+                                                    </select>
+                                                </div>
+
+                                                <!-- 第二阶段：具体本体模型 -->
+                                                <div class="mb-2">
+                                                    <label class="form-label small text-muted">具体本体</label>
+                                                    <select class="form-select" id="ontology-model-select" disabled>
+                                                        <option value="">-- 请先选择本体类型 --</option>
+                                                    </select>
+                                                </div>
+
+                                                <!-- 第三阶段：参数级别 -->
+                                                <div class="mb-2">
+                                                    <label class="form-label small text-muted">参数级别</label>
+                                                    <select class="form-select" id="ontology-param-select" disabled>
+                                                        <option value="">-- 请先选择具体本体 --</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">映射方式</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="mappingMethod"
+                                                    id="automatic" checked>
+                                                <label class="form-check-label" for="automatic">
+                                                    自动映射（基于语义分析）
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="mappingMethod"
+                                                    id="semiautomatic">
+                                                <label class="form-check-label" for="semiautomatic">
+                                                    半自动映射（人工确认）
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="mappingMethod"
+                                                    id="manual">
+                                                <label class="form-check-label" for="manual">
+                                                    人工映射
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <button class="btn btn-primary">执行映射</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">映射结果</div>
+                                    <div class="card-body">
+                                        <ul class="nav nav-tabs">
+                                            <li class="nav-item">
+                                                <a class="nav-link active" href="#mapping-overview">概览</a>
+                                            </li>
+                                            <li class="nav-item">
+                                                <a class="nav-link" href="#mapping-details">详细映射</a>
+                                            </li>
+                                        </ul>
+                                        <div class="tab-content mt-3">
+                                            <div class="tab-pane active" id="mapping-overview">
+                                                <div class="alert alert-info">
+                                                    <h6>映射统计</h6>
+                                                    <div class="d-flex justify-content-between">
+                                                        <span>总映射实体数：</span>
+                                                        <span>24</span>
+                                                    </div>
+                                                    <div class="d-flex justify-content-between">
+                                                        <span>成功映射数：</span>
+                                                        <span>21</span>
+                                                    </div>
+                                                    <div class="d-flex justify-content-between">
+                                                        <span>未映射数：</span>
+                                                        <span>3</span>
+                                                    </div>
+                                                    <div class="d-flex justify-content-between">
+                                                        <span>映射置信度：</span>
+                                                        <span>87%</span>
+                                                    </div>
+                                                </div>
+                                                <table class="table table-bordered">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>原文片段</th>
+                                                            <th>映射实体</th>
+                                                            <th>本体类型</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td>启动异常</td>
+                                                            <td>启动_故障</td>
+                                                            <td>故障现象</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>点火系统</td>
+                                                            <td>发动机.点火系统</td>
+                                                            <td>系统组件</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>火花塞</td>
+                                                            <td>点火系统.火花塞</td>
+                                                            <td>部件</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <div class="tab-pane" id="mapping-details">
+                                                <div class="mb-3">
+                                                    <label class="form-label">元数据映射详情</label>
+                                                    <div class="border p-3" style="height: 300px; overflow-y: auto;">
+                                                        <table class="table table-sm">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>数据来源</th>
+                                                                    <th>本体类型</th>
+                                                                    <th>具体本体</th>
+                                                                    <th>参数字段</th>
+                                                                    <th>映射置信度</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td>"点火电压低于12V"</td>
+                                                                    <td>数据本体</td>
+                                                                    <td>传感器数据本体-v2.1</td>
+                                                                    <td>电压参数.点火电压</td>
+                                                                    <td>95%</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>"气缸压力测试不合格"</td>
+                                                                    <td>测试本体</td>
+                                                                    <td>发动机测试本体-v1.0</td>
+                                                                    <td>气缸压力测试.判定标准</td>
+                                                                    <td>92%</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>"更换火花塞后问题解决"</td>
+                                                                    <td>故障模式本体</td>
+                                                                    <td>发动机故障模式本体-v1.3</td>
+                                                                    <td>火花塞故障.处置措施</td>
+                                                                    <td>89%</td>
+                                                                </tr>
+                                                                <tr class="table-warning">
+                                                                    <td>"控制单元重启"</td>
+                                                                    <td colspan="3"><em>未映射</em></td>
+                                                                    <td>-</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>"发动机ECU"</td>
+                                                                    <td>系统结构本体</td>
+                                                                    <td>航空发动机系统结构-v1.2</td>
+                                                                    <td>控制系统.ECU</td>
+                                                                    <td>97%</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>"燃烧室温度400°C"</td>
+                                                                    <td>数据本体</td>
+                                                                    <td>传感器数据本体-v2.1</td>
+                                                                    <td>温度传感器T1.读数</td>
+                                                                    <td>96%</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>"排气道震动异常"</td>
+                                                                    <td>系统结构本体</td>
+                                                                    <td>航空发动机系统结构-v1.2</td>
+                                                                    <td>排气系统.排气道</td>
+                                                                    <td>88%</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>"故障概率0.75"</td>
+                                                                    <td>诊断模型本体</td>
+                                                                    <td>发动机诊断本体-v1.0</td>
+                                                                    <td>条件概率表.故障A</td>
+                                                                    <td>93%</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-warning">
+                                            <h6>警告：发现不完整映射</h6>
+                                            <ul class="mb-0">
+                                                <li>点火线圈未能映射到已知本体实体</li>
+                                                <li>缺少故障原因与部件之间的关系描述</li>
+                                                <li>"控制单元重启"操作未找到对应的本体元素</li>
+                                            </ul>
+                                        </div>
+                                        <form>
+                                            <div class="mb-3">
+                                                <label class="form-label">补充映射</label>
+                                                <textarea class="form-control" rows="3"
+                                                    placeholder="输入未映射项的手动映射关系..."></textarea>
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-primary">更新本体映射</button>
+                                                <button class="btn btn-outline-primary">导出映射结果</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 知识检索 -->
+                    <div id="knowledge-search" class="tab-pane fade" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header">知识检索</div>
+                                    <div class="card-body">
+                                        <div class="input-group mb-4">
+                                            <input type="text" class="form-control" placeholder="输入关键词或故障描述进行语义搜索...">
+                                            <button class="btn btn-primary" type="button">搜索</button>
+                                        </div>
+                                        <div class="d-flex mb-3">
+                                            <div class="me-2">
+                                                <label class="form-label me-2">过滤条件:</label>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="filter1"
+                                                        value="option1">
+                                                    <label class="form-check-label" for="filter1">技术文档</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="filter2"
+                                                        value="option2">
+                                                    <label class="form-check-label" for="filter2">维修案例</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="checkbox" id="filter3"
+                                                        value="option3">
+                                                    <label class="form-check-label" for="filter3">专家经验</label>
+                                                </div>
+                                            </div>
+                                            <div class="ms-auto">
+                                                <label class="form-label me-2">排序:</label>
+                                                <select class="form-select form-select-sm d-inline-block w-auto">
+                                                    <option>相关度</option>
+                                                    <option>时间（新→旧）</option>
+                                                    <option>时间（旧→新）</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="list-group">
+                                            <a href="#" class="list-group-item list-group-item-action">
+                                                <div class="d-flex w-100 justify-content-between">
+                                                    <h5 class="mb-1">故障案例 #001</h5>
+                                                    <small>相关度: 95%</small>
+                                                </div>
+                                                <p class="mb-1">发动机启动异常诊断报告，涉及点火系统和燃油系统的相关故障...</p>
+                                                <small class="text-muted">更新时间: 2023-04-15</small>
+                                            </a>
+                                            <a href="#" class="list-group-item list-group-item-action">
+                                                <div class="d-flex w-100 justify-content-between">
+                                                    <h5 class="mb-1">维修手册 - 控制系统部分</h5>
+                                                    <small>相关度: 87%</small>
+                                                </div>
+                                                <p class="mb-1">控制系统常见故障及处理方法，包含传感器异常和执行器失效等情况...</p>
+                                                <small class="text-muted">更新时间: 2023-02-10</small>
+                                            </a>
+                                            <a href="#" class="list-group-item list-group-item-action">
+                                                <div class="d-flex w-100 justify-content-between">
+                                                    <h5 class="mb-1">专家经验记录 #042</h5>
+                                                    <small>相关度: 82%</small>
+                                                </div>
+                                                <p class="mb-1">针对复杂环境下的发动机启动问题，提供一种快速诊断方法...</p>
+                                                <small class="text-muted">更新时间: 2023-01-20</small>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+
+
+                    </div>
+                    <!-- 知识处理 -->
+                    <div id="knowledge-processing" class="tab-pane fade" role="tabpanel">
+
+
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">文本解析与预处理</div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">选择文档</label>
+                                            <select class="form-select">
+                                                <option>故障案例 #001</option>
+                                                <option>维修手册 - 控制系统部分</option>
+                                                <option>专家经验记录 #042</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">预处理选项</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="process1">
+                                                <label class="form-check-label" for="process1">文本清洗</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="process2">
+                                                <label class="form-check-label" for="process2">分句处理</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="process3">
+                                                <label class="form-check-label" for="process3">文本分块</label>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">处理结果预览</label>
+                                            <div class="vector-preview">
+                                                <pre class="mb-0">处理后的文本将显示在这里...</pre>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-primary">开始处理</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">向量化与语义检索</div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">向量化模型</label>
+                                            <select class="form-select">
+                                                <option>SBERT-768维</option>
+                                                <option>SBERT-降维版本</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">向量预览</label>
+                                            <div class="vector-preview">
+                                                <pre class="mb-0">向量数据将显示在这里...</pre>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">向量数据库</label>
+                                            <div class="alert alert-info">
+                                                <small>使用FAISS进行向量存储和检索</small>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-primary">更新向量库</button>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- 新添加的FMECA和Simulink模型生成多信号流图模块 -->
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header">FMECA与Simulink模型生成多信号流图</div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label">数据来源</label>
+                                                    <select class="form-select" id="signal-flow-source-type">
+                                                        <option value="fmeca">FMECA表格</option>
+                                                        <option value="simulink">Simulink模型</option>
+                                                        <option value="both">两者结合</option>
+                                                    </select>
+                                                </div>
+
+                                                <!-- FMECA来源选择 -->
+                                                <div class="mb-3 signal-flow-source" id="fmeca-source">
+                                                    <label class="form-label">选择FMECA表格</label>
+                                                    <select class="form-select mb-2">
+                                                        <option>发动机FMECA-2024版</option>
+                                                        <option>控制系统FMECA-v2.3</option>
+                                                        <option>电气系统FMECA-v1.5</option>
+                                                    </select>
+                                                    <div>
+                                                        <label class="form-label">上传新FMECA表格</label>
+                                                        <div class="file-upload-area">
+                                                            <input type="file" class="d-none" id="fmecaFileInput"
+                                                                accept=".xlsx,.csv">
+                                                            <p class="mb-0">点击或拖拽文件到此处上传</p>
+                                                            <small class="text-muted">支持Excel和CSV格式</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Simulink模型来源选择 -->
+                                                <div class="mb-3 signal-flow-source d-none" id="simulink-source">
+                                                    <label class="form-label">选择Simulink模型</label>
+                                                    <select class="form-select mb-2">
+                                                        <option>发动机控制模型-v3.2</option>
+                                                        <option>燃油系统模型-v2.0</option>
+                                                        <option>电气系统模型-v1.8</option>
+                                                    </select>
+                                                    <div>
+                                                        <label class="form-label">上传新Simulink模型</label>
+                                                        <div class="file-upload-area">
+                                                            <input type="file" class="d-none" id="simulinkFileInput"
+                                                                accept=".slx,.mdl,.xml">
+                                                            <p class="mb-0">点击或拖拽文件到此处上传</p>
+                                                            <small class="text-muted">支持.slx、.mdl和XML格式</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label">转换配置</label>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="autoConnect"
+                                                            checked>
+                                                        <label class="form-check-label"
+                                                            for="autoConnect">自动连接相关节点</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox"
+                                                            id="includeFailureModes" checked>
+                                                        <label class="form-check-label"
+                                                            for="includeFailureModes">包含故障模式</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox"
+                                                            id="includeTestPoints">
+                                                        <label class="form-check-label"
+                                                            for="includeTestPoints">包含测试点</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox"
+                                                            id="optimizeLayout" checked>
+                                                        <label class="form-check-label"
+                                                            for="optimizeLayout">优化布局</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label">信号流图预览</label>
+                                                    <div class="border p-3 bg-light rounded"
+                                                        style="height: 260px; overflow: auto;">
+                                                        <div
+                                                            class="text-center text-muted d-flex align-items-center justify-content-center h-100">
+                                                            <div>
+                                                                <i class="bi bi-diagram-3" style="font-size: 2rem;"></i>
+                                                                <p>生成后的多信号流图将在此预览</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label">输出格式</label>
+                                                    <select class="form-select">
+                                                        <option>JSON格式</option>
+                                                        <option>XML格式</option>
+                                                        <option>图形化格式(SVG)</option>
+                                                        <option>原生格式</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="d-flex gap-2 mt-4">
+                                                    <button class="btn btn-primary flex-grow-1">生成多信号流图</button>
+                                                    <button class="btn btn-outline-primary">导出</button>
+                                                    <button class="btn btn-outline-secondary">保存配置</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+
+                    <!-- 本体模型构建 -->
+                    <div id="ontology-modeling" class="tab-pane fade" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">本体模型类型</div>
+                                    <div class="card-body">
+                                        <div class="list-group">
+                                            <a href="#" class="list-group-item list-group-item-action active"
+                                                data-ontology-type="diagnosis">诊断模型本体</a>
+                                            <a href="#" class="list-group-item list-group-item-action"
+                                                data-ontology-type="data">数据本体</a>
+                                            <a href="#" class="list-group-item list-group-item-action"
+                                                data-ontology-type="system">系统结构本体</a>
+                                            <a href="#" class="list-group-item list-group-item-action"
+                                                data-ontology-type="test">测试本体</a>
+                                            <a href="#" class="list-group-item list-group-item-action"
+                                                data-ontology-type="fault">故障模式本体</a>
+                                        </div>
+                                        <div class="mt-3">
+                                            <button class="btn btn-primary w-100"
+                                                id="create-new-ontology">创建新本体</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card mt-3">
+                                    <div class="card-header">本体模型管理</div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">选择现有本体</label>
+                                            <select class="form-select">
+                                                <option>-- 请选择 --</option>
+                                                <option>发动机诊断本体-v1.0</option>
+                                                <option>传感器数据本体-v2.1</option>
+                                                <option>控制系统结构本体-v1.5</option>
+                                            </select>
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-outline-primary">导入</button>
+                                            <button class="btn btn-outline-primary">导出</button>
+                                            <button class="btn btn-outline-danger">删除</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <!-- 诊断模型本体 -->
+                                <div class="ontology-content" id="diagnosis-ontology">
+                                    <div class="card">
+                                        <div class="card-header">诊断模型本体</div>
+                                        <div class="card-body">
+                                            <p class="text-muted">
+                                                定义诊断推理所需的基础概念，如模型名称、诊断规则、算法类型、条件概率等。是建立自动化或半自动化诊断引擎的核心元素。</p>
+                                            <form>
+                                                <div class="mb-3">
+                                                    <label class="form-label">本体名称</label>
+                                                    <input type="text" class="form-control" placeholder="例如：发动机诊断本体">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">诊断方法</label>
+                                                    <select class="form-select">
+                                                        <option>贝叶斯网络</option>
+                                                        <option>决策树</option>
+                                                        <option>规则推理</option>
+                                                        <option>深度学习</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">诊断规则定义</label>
+                                                    <textarea class="form-control" rows="5"
+                                                        placeholder="输入诊断规则..."></textarea>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">条件概率表</label>
+                                                    <table class="table table-sm table-bordered">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>条件</th>
+                                                                <th>故障A</th>
+                                                                <th>故障B</th>
+                                                                <th>故障C</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td>症状1</td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="0.8"></td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="0.3"></td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="0.1"></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td>症状2</td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="0.2"></td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="0.7"></td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="0.4"></td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                    <button class="btn btn-sm btn-outline-primary">添加行</button>
+                                                    <button class="btn btn-sm btn-outline-primary">添加列</button>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary">保存本体模型</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 数据本体 -->
+                                <div class="ontology-content d-none" id="data-ontology">
+                                    <div class="card">
+                                        <div class="card-header">数据本体</div>
+                                        <div class="card-body">
+                                            <p class="text-muted">
+                                                表征系统实际观测数据，如传感器读数、日志信息、时间戳等。与时序数据库相连接，为故障识别与定位提供实时或历史数据支撑。</p>
+                                            <form>
+                                                <div class="mb-3">
+                                                    <label class="form-label">本体名称</label>
+                                                    <input type="text" class="form-control" placeholder="例如：传感器数据本体">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">数据源类型</label>
+                                                    <select class="form-select">
+                                                        <option>传感器数据</option>
+                                                        <option>系统日志</option>
+                                                        <option>操作记录</option>
+                                                        <option>告警信息</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">数据项定义</label>
+                                                    <table class="table table-bordered">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>数据项名称</th>
+                                                                <th>数据类型</th>
+                                                                <th>单位</th>
+                                                                <th>正常范围</th>
+                                                                <th>采样频率</th>
+                                                                <th>操作</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="温度传感器T1"></td>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option>整数</option>
+                                                                        <option selected>浮点数</option>
+                                                                        <option>枚举</option>
+                                                                        <option>字符串</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm" value="℃">
+                                                                </td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="20-80"></td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="1Hz"></td>
+                                                                <td><button
+                                                                        class="btn btn-sm btn-outline-danger">删除</button>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="压力传感器P1"></td>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option>整数</option>
+                                                                        <option selected>浮点数</option>
+                                                                        <option>枚举</option>
+                                                                        <option>字符串</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="kPa"></td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="90-110"></td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="5Hz"></td>
+                                                                <td><button
+                                                                        class="btn btn-sm btn-outline-danger">删除</button>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                    <button class="btn btn-sm btn-outline-primary">添加数据项</button>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary">保存本体模型</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 系统结构本体 -->
+                                <div class="ontology-content d-none" id="system-ontology">
+                                    <div class="card">
+                                        <div class="card-header">系统结构本体</div>
+                                        <div class="card-body">
+                                            <p class="text-muted">
+                                                描述被诊系统的分层结构、组件命名、功能接口，以及"上层—下层"或"父组件—子组件"的层次关系。为案例库、FMECA
+                                                表格和知识图谱提供一致的结构语义。</p>
+                                            <form>
+                                                <div class="mb-3">
+                                                    <label class="form-label">本体名称</label>
+                                                    <input type="text" class="form-control" placeholder="例如：控制系统结构本体">
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">系统结构树</label>
+                                                            <div class="border p-3"
+                                                                style="height: 300px; overflow-y: auto;">
+                                                                <ul class="list-group">
+                                                                    <li class="list-group-item">
+                                                                        <div
+                                                                            class="d-flex justify-content-between align-items-center">
+                                                                            <span>主系统</span>
+                                                                            <button
+                                                                                class="btn btn-sm btn-outline-primary">添加子系统</button>
+                                                                        </div>
+                                                                        <ul class="list-group mt-2">
+                                                                            <li class="list-group-item">
+                                                                                <div
+                                                                                    class="d-flex justify-content-between align-items-center">
+                                                                                    <span>子系统1</span>
+                                                                                    <div>
+                                                                                        <button
+                                                                                            class="btn btn-sm btn-outline-primary">添加</button>
+                                                                                        <button
+                                                                                            class="btn btn-sm btn-outline-danger">删除</button>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <ul class="list-group mt-2">
+                                                                                    <li class="list-group-item">
+                                                                                        <div
+                                                                                            class="d-flex justify-content-between align-items-center">
+                                                                                            <span>组件1.1</span>
+                                                                                            <div>
+                                                                                                <button
+                                                                                                    class="btn btn-sm btn-outline-primary">添加</button>
+                                                                                                <button
+                                                                                                    class="btn btn-sm btn-outline-danger">删除</button>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </li>
+                                                                                </ul>
+                                                                            </li>
+                                                                            <li class="list-group-item">
+                                                                                <div
+                                                                                    class="d-flex justify-content-between align-items-center">
+                                                                                    <span>子系统2</span>
+                                                                                    <div>
+                                                                                        <button
+                                                                                            class="btn btn-sm btn-outline-primary">添加</button>
+                                                                                        <button
+                                                                                            class="btn btn-sm btn-outline-danger">删除</button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </li>
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">组件属性</label>
+                                                            <div class="form-control" style="height: 300px;">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">组件名称</label>
+                                                                    <input type="text" class="form-control"
+                                                                        value="组件1.1">
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">功能描述</label>
+                                                                    <textarea class="form-control" rows="3"></textarea>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">接口信息</label>
+                                                                    <textarea class="form-control" rows="3"></textarea>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary">保存本体模型</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 测试本体 -->
+                                <div class="ontology-content d-none" id="test-ontology">
+                                    <div class="card">
+                                        <div class="card-header">测试本体</div>
+                                        <div class="card-body">
+                                            <p class="text-muted">
+                                                记录测试项、检测方法、测试仪器及相关标准（阈值、量程等），是故障检测逻辑的支撑要素。测试输出数据可与数据本体结合，用于进一步判定系统状态。
+                                            </p>
+                                            <form>
+                                                <div class="mb-3">
+                                                    <label class="form-label">本体名称</label>
+                                                    <input type="text" class="form-control" placeholder="例如：发动机测试本体">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">测试项定义</label>
+                                                    <table class="table table-bordered">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>测试项名称</th>
+                                                                <th>测试方法</th>
+                                                                <th>测试仪器</th>
+                                                                <th>判定标准</th>
+                                                                <th>操作</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="气缸压力测试"></td>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option>目视检查</option>
+                                                                        <option>电气测量</option>
+                                                                        <option selected>压力测量</option>
+                                                                        <option>振动分析</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="压力计P-100"></td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="900-1100 kPa"></td>
+                                                                <td><button
+                                                                        class="btn btn-sm btn-outline-danger">删除</button>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="点火时间测试"></td>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option>目视检查</option>
+                                                                        <option selected>电气测量</option>
+                                                                        <option>压力测量</option>
+                                                                        <option>振动分析</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="示波器OSC-200"></td>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="12±2度曲轴角"></td>
+                                                                <td><button
+                                                                        class="btn btn-sm btn-outline-danger">删除</button>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                    <button class="btn btn-sm btn-outline-primary">添加测试项</button>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary">保存本体模型</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 故障模式本体 -->
+                                <div class="ontology-content d-none" id="fault-ontology">
+                                    <div class="card">
+                                        <div class="card-header">故障模式本体</div>
+                                        <div class="card-body">
+                                            <p class="text-muted">描述故障现象、故障原因、故障类型（硬件/功能）、危害度、发生概率以及处置措施等。</p>
+                                            <form>
+                                                <div class="mb-3">
+                                                    <label class="form-label">本体名称</label>
+                                                    <input type="text" class="form-control" placeholder="例如：发动机故障模式本体">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">故障模式定义</label>
+                                                    <table class="table table-bordered">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>故障名称</th>
+                                                                <th>故障描述</th>
+                                                                <th>故障类型</th>
+                                                                <th>危害度</th>
+                                                                <th>发生概率</th>
+                                                                <th>操作</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="火花塞故障"></td>
+                                                                <td><textarea class="form-control form-control-sm"
+                                                                        rows="2">电极磨损导致点火不良</textarea></td>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option selected>硬件故障</option>
+                                                                        <option>功能故障</option>
+                                                                        <option>软件故障</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option>严重</option>
+                                                                        <option selected>中等</option>
+                                                                        <option>轻微</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option>高</option>
+                                                                        <option selected>中</option>
+                                                                        <option>低</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td><button
+                                                                        class="btn btn-sm btn-outline-danger">删除</button>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td><input type="text"
+                                                                        class="form-control form-control-sm"
+                                                                        value="燃油压力异常"></td>
+                                                                <td><textarea class="form-control form-control-sm"
+                                                                        rows="2">燃油泵故障导致压力不足</textarea></td>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option selected>硬件故障</option>
+                                                                        <option>功能故障</option>
+                                                                        <option>软件故障</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option selected>严重</option>
+                                                                        <option>中等</option>
+                                                                        <option>轻微</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option>高</option>
+                                                                        <option>中</option>
+                                                                        <option selected>低</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td><button
+                                                                        class="btn btn-sm btn-outline-danger">删除</button>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                    <button class="btn btn-sm btn-outline-primary">添加故障模式</button>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">处置措施</label>
+                                                    <table class="table table-bordered">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>故障名称</th>
+                                                                <th>处置措施</th>
+                                                                <th>操作</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option selected>火花塞故障</option>
+                                                                        <option>燃油压力异常</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td><textarea class="form-control form-control-sm"
+                                                                        rows="2">更换火花塞，检查点火线圈</textarea></td>
+                                                                <td><button
+                                                                        class="btn btn-sm btn-outline-danger">删除</button>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td>
+                                                                    <select class="form-select form-select-sm">
+                                                                        <option>火花塞故障</option>
+                                                                        <option selected>燃油压力异常</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td><textarea class="form-control form-control-sm"
+                                                                        rows="2">检查燃油泵，更换燃油滤清器</textarea></td>
+                                                                <td><button
+                                                                        class="btn btn-sm btn-outline-danger">删除</button>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                    <button class="btn btn-sm btn-outline-primary">添加处置措施</button>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary">保存本体模型</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 自定义脚本 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 初始化标签页切换功能
+            const tabLinks = document.querySelectorAll('#mainTabs .nav-link');
+            const tabContents = document.querySelectorAll('.tab-content .tab-pane');
+
+            tabLinks.forEach(tabLink => {
+                tabLink.addEventListener('click', function (e) {
+                    e.preventDefault();
+
+                    // 移除所有标签页的active类
+                    tabLinks.forEach(link => link.classList.remove('active'));
+
+                    // 隐藏所有标签内容
+                    tabContents.forEach(content => {
+                        content.classList.remove('show', 'active');
+                    });
+
+                    // 激活当前标签页
+                    this.classList.add('active');
+
+                    // 显示对应的内容
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.classList.add('show', 'active');
+                    }
+                });
+            });
+
+            // 文件上传区域点击交互
+            const fileUploadAreas = document.querySelectorAll('.file-upload-area');
+            fileUploadAreas.forEach(area => {
+                const fileInput = area.querySelector('input[type="file"]');
+                area.addEventListener('click', () => {
+                    fileInput.click();
+                });
+
+                fileInput.addEventListener('change', function () {
+                    if (this.files.length > 0) {
+                        const fileName = this.files[0].name;
+                        const p = area.querySelector('p');
+                        p.textContent = `已选择文件: ${fileName}`;
+                    }
+                });
+            });
+
+            // 本体映射源类型切换
+            const mappingSourceType = document.getElementById('mapping-source-type');
+            if (mappingSourceType) {
+                mappingSourceType.addEventListener('change', function () {
+                    const sources = document.querySelectorAll('.mapping-source');
+                    sources.forEach(source => source.classList.add('d-none'));
+
+                    const selectedSource = document.getElementById(`${this.value}-source`);
+                    if (selectedSource) {
+                        selectedSource.classList.remove('d-none');
+                    }
+                });
+            }
+
+            // 信号流图数据源类型切换
+            const signalFlowSourceType = document.getElementById('signal-flow-source-type');
+            if (signalFlowSourceType) {
+                signalFlowSourceType.addEventListener('change', function () {
+                    const sources = document.querySelectorAll('.signal-flow-source');
+
+                    if (this.value === 'both') {
+                        sources.forEach(source => source.classList.remove('d-none'));
+                    } else {
+                        sources.forEach(source => source.classList.add('d-none'));
+                        const selectedSource = document.getElementById(`${this.value}-source`);
+                        if (selectedSource) {
+                            selectedSource.classList.remove('d-none');
+                        }
+                    }
+                });
+            }
+
+            // 本体类型切换
+            const ontologyTypeLinks = document.querySelectorAll('[data-ontology-type]');
+            if (ontologyTypeLinks.length > 0) {
+                ontologyTypeLinks.forEach(link => {
+                    link.addEventListener('click', function (e) {
+                        e.preventDefault();
+
+                        // 移除所有链接的active类
+                        ontologyTypeLinks.forEach(l => l.classList.remove('active'));
+
+                        // 激活当前链接
+                        this.classList.add('active');
+
+                        // 隐藏所有本体内容
+                        const ontologyContents = document.querySelectorAll('.ontology-content');
+                        ontologyContents.forEach(content => content.classList.add('d-none'));
+
+                        // 显示对应的本体内容
+                        const type = this.getAttribute('data-ontology-type');
+                        const content = document.getElementById(`${type}-ontology`);
+                        if (content) {
+                            content.classList.remove('d-none');
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
